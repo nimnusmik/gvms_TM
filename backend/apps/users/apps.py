@@ -10,3 +10,6 @@ class UsersConfig(AppConfig):
 
     #관리자 페이지에 띄울 예쁜이름
     verbose_name = "상담원 및 유저 관리"
+    def ready(self):
+            # 앱이 시작될 때 시그널을 로드함
+            import apps.users.signals
