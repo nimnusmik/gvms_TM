@@ -19,5 +19,5 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/v1/', include('apps.users.urls')) # api/v1/ 경로로 들어오면 users 앱의 urls를 참조해라
+    path('api/v1/', include('apps.accounts.urls')) # api/v1/ 경로로 들어오면 users 앱의 urls를 참조해라
 ]
