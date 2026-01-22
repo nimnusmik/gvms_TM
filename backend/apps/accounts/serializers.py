@@ -14,7 +14,7 @@ class AccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Account
-        fields = ['account_id', 'email', 'level', 'level_name', 'is_active', 'last_login_at', 'created_at']
+        fields = ['account_id', 'email', 'level', 'level_name', 'is_active','is_staff', 'last_login_at', 'created_at']
 
 # 3. 계정 생성용 (POST)
 class AccountCreateSerializer(serializers.ModelSerializer):
@@ -35,6 +35,19 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
+
+        token['is_staff'] = user.is_staff
         token['email'] = user.email
         token['level'] = user.level.level_name # 토큰에 등급 정보 박아넣기
         return token
+
+    def validate(self, attrs):
+        # 1. 부모님(super) 기술로 먼저 검증하고 토큰을 받아옵니다.
+        data = super().validate(attrs)
+
+        # 2. 받아온 데이터 가방(data)에 'is_staff'를 몰래 집어넣습니다.
+        data['is_staff'] = self.user.is_staff
+        # data['email'] = self.user.email # 필요하면 이메일도 추가
+
+        # 3. 내용물이 추가된 가방을 리턴합니다.
+        return data
