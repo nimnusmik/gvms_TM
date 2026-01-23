@@ -62,27 +62,32 @@ export default function LoginPage() {
   return (
     <div className="w-full h-screen lg:grid lg:grid-cols-2">
       
+      {/* 왼쪽 비주얼 영역 */}
       <div className="hidden bg-zinc-900 lg:flex flex-col justify-between p-10 text-white relative overflow-hidden">
         <div 
           className="absolute inset-0 bg-cover bg-center opacity-40"
-          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2301&auto=format&fit=crop')" }}
+          // 사용자가 제공한 ibb 이미지 주소 적용됨
+          style={{ backgroundImage: "url('https://i.ibb.co/dsPLD4j8/tm-img1.jpg')" }}
         />
         
         {/* 상단 로고 */}
-        <div className="relative z-10 flex items-center text-lg font-medium">
-          <Command className="mr-2 h-6 w-6" /> {/* 로고 아이콘 */}
-          Global Vision TM
-        </div>
+        <div className="relative z-10 flex items-center">
+          <img
+            src="/gv_logo_b.png"
+            alt="Global Vision TM Logo"
+            className="h-8 w-auto mr-2" 
+          />
+        </div> 
 
         {/* 하단 인용구 */}
         <div className="relative z-10 mt-auto">
           <blockquote className="space-y-2">
-
             <footer className="text-sm text-zinc-400">Admin Console Team</footer>
           </blockquote>
         </div>
       </div>
 
+      {/* 오른쪽 로그인 폼 영역 */}
       <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
           

@@ -32,3 +32,5 @@ export interface AuthResponse {
   user: User;      // 위에서 정의한 User 정보
   is_staff: boolean;
 }
+
+export type SignupResponse = User;

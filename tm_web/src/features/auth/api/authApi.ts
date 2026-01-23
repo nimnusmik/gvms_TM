@@ -1,6 +1,6 @@
 // src/features/auth/api/authApi.ts
 import { api } from '@/lib/axios'; // 위에서 만든 중앙 api 사용
-import { LoginCredentials, SignupCredentials, AuthResponse } from '../types/index';
+import { LoginCredentials, SignupCredentials, AuthResponse, SignupResponse } from '../types/index';
 
 export const authApi = {
   // 로그인
@@ -11,7 +11,7 @@ export const authApi = {
   
   // 회원가입 (새로 추가!)
   signup: async (data: SignupCredentials) => {
-    const response = await api.post('/auth/accounts/', data); // ModelViewSet 주소
+    const response = await api.post<SignupResponse>('/auth/signup/', data);
     return response.data;
   },
 };
