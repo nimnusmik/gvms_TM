@@ -41,6 +41,8 @@ class AccountManager(BaseUserManager):
 class Account(AbstractBaseUser, PermissionsMixin):
     account_id = models.BigAutoField(primary_key=True)
     email = models.EmailField("이메일", max_length=100, unique=True)
+
+    name = models.CharField("이름", max_length=20)
     
     # FK 연결: accounts.level_id -> member_levels.level_id
     level = models.ForeignKey(MemberLevel, on_delete=models.PROTECT, related_name='accounts', verbose_name="등급")
@@ -54,7 +56,7 @@ class Account(AbstractBaseUser, PermissionsMixin):
     # Django 필수 설정
     objects = AccountManager()
     USERNAME_FIELD = 'email' # 로그인 ID로 이메일 사용
-    REQUIRED_FIELDS = []     # 슈퍼유저 생성 시 추가로 물어볼 필드 (없음)
+    REQUIRED_FIELDS = ['name']     
 
     class Meta:
         db_table = 'accounts' # DB 테이블 이름 지정

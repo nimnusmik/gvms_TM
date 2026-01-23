@@ -22,7 +22,8 @@ sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
 env = environ.Env(
     DEBUG=(bool,False)
 )
-environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+
+environ.Env.read_env(os.path.join(BASE_DIR.parent, '.env'))
 
 SECRET_KEY = env('SECRET_KEY')
 DEBUG = env.bool('DEBUG', default=True)
@@ -110,7 +111,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('POSTGRES_DB', 'tm_db'),
+        'NAME': os.getenv('POSTGRES_DB'),
         'USER': os.getenv('POSTGRES_USER', 'postgres'),
         'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'postgres123!'),
         

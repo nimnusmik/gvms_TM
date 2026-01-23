@@ -11,7 +11,7 @@ export const authApi = {
   
   // 회원가입 (새로 추가!)
   signup: async (data: SignupCredentials) => {
-    const response = await api.post('/accounts/', data); // ModelViewSet 주소
+    const response = await api.post('/auth/accounts/', data); // ModelViewSet 주소
     return response.data;
   },
 };

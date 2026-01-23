@@ -1,6 +1,9 @@
 from rest_framework import serializers
 from .models import Account, MemberLevel
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 # 1. 등급 조회용
 class LevelSerializer(serializers.ModelSerializer):
@@ -14,7 +17,7 @@ class AccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Account
-        fields = ['account_id', 'email', 'level', 'level_name', 'is_active','is_staff', 'last_login_at', 'created_at']
+        fields = ['account_id', 'email', 'name', 'level', 'level_name', 'is_active','is_staff', 'last_login_at', 'created_at']
 
 # 3. 계정 생성용 (POST)
 class AccountCreateSerializer(serializers.ModelSerializer):
@@ -22,13 +25,40 @@ class AccountCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Account
-        fields = ['email', 'password', 'level']
+        fields = ['email', 'password', 'name', 'level']
 
     def create(self, validated_data):
-        password = validated_data.pop('password')
-        # 일반 create 대신 create_user를 써야 비밀번호가 암호화됨
-        user = Account.objects.create_user(password=password, **validated_data)
+
+        user = Account.objects.create_user(
+            email=validated_data['email'],
+            password=validated_data['password'],
+            name=validated_data['name'],  
+        )
         return user
+
+
+class UserRegistrationSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = Account
+        # 👇 중요: 'level', 'is_staff', 'is_active' 같은 건 입력 못하게 뺍니다!
+        fields = ['email', 'password', 'name'] 
+
+    def create(self, validated_data):
+
+        default_level = MemberLevel.objects.first()
+        
+        if not default_level: MemberLevel.objects.create(level_name="일반사원")
+
+        user = Account.objects.create_user(
+            email=validated_data['email'],
+            password=validated_data['password'],
+            name=validated_data['name'],
+            level=default_level
+        )
+        return user
+
 
 # 4. JWT 토큰 커스텀 (로그인 시 레벨 정보 포함)
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -37,8 +67,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token = super().get_token(user)
 
         token['is_staff'] = user.is_staff
+        token['name'] = user.name       
         token['email'] = user.email
-        token['level'] = user.level.level_name # 토큰에 등급 정보 박아넣기
+        token['level'] = user.level.level_name if user.level else "Unknown"
         return token
 
     def validate(self, attrs):
@@ -49,5 +80,5 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['is_staff'] = self.user.is_staff
         # data['email'] = self.user.email # 필요하면 이메일도 추가
 
-        # 3. 내용물이 추가된 가방을 리턴합니다.
         return data
+    

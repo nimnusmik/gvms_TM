@@ -8,6 +8,7 @@ export interface User {
       level_name: string;
     };
     is_active: boolean;
+    is_staff: boolean;
     last_login_at: string;
   }
   
@@ -21,6 +22,7 @@ export interface LoginCredentials {
 export interface SignupCredentials {
   email: string;
   password: string;
+  name: string;
 }
 
 // 4. 로그인 성공했을 때 서버가 주는 응답 데이터 (토큰 + 유저정보)
@@ -28,4 +30,5 @@ export interface AuthResponse {
   access: string;  // 액세스 토큰
   refresh: string; // 리프레시 토큰
   user: User;      // 위에서 정의한 User 정보
+  is_staff: boolean;
 }
