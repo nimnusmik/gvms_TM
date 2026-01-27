@@ -4,14 +4,11 @@ import { agentApi } from "../api/agentApi";
 import { Customer, CustomerStatus, Agent } from "../types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { UploadCloud, Search, UserCog } from "lucide-react";
+import { toast } from "sonner";
 
 export default function CustomerManagementPage() {
   // 데이터 상태
@@ -27,7 +24,6 @@ export default function CustomerManagementPage() {
   // 배정 모달 상태
   const [targetCustomer, setTargetCustomer] = useState<Customer | null>(null);
   
-  // ✅ [수정 1] ID는 문자열(string)로 관리합니다.
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
 
   // 1. 초기 데이터 로딩
@@ -55,19 +51,28 @@ export default function CustomerManagementPage() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (!confirm(`'${file.name}' 파일을 업로드하시겠습니까?`)) {
+  
+    // 파일 크기 체크 (선택 사항: 10MB 제한 등)
+    if (file.size > 10 * 1024 * 1024) {
+      toast("파일 크기는 10MB를 넘을 수 없습니다.");
+      return;
+    }
+  
+    if (!confirm(`'${file.name}' 파일을 업로드하시겠습니까? \n(대량 업로드 시 시간이 조금 걸릴 수 있습니다.)`)) {
       e.target.value = "";
       return;
     }
-
+  
     setIsUploading(true);
     try {
-      await customerApi.uploadExcel(file);
-      alert("✅ 업로드 완료!");
+      const response = await customerApi.uploadExcel(file);
+      
+      toast(`✅ ${response.message || "업로드가 완료되었습니다!"}`); 
+      
       fetchData(); 
-    } catch (error) {
-      alert("❌ 업로드 실패: 파일 형식을 확인해주세요.");
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.error || "업로드 실패: 파일 형식을 확인해주세요.";
+      toast(`❌ ${errorMsg}`);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -77,19 +82,18 @@ export default function CustomerManagementPage() {
   // 3. 상담원 배정 핸들러
   const handleAssign = async () => {
     if (!targetCustomer || !selectedAgentId) {
-      alert("배정할 상담원을 선택해주세요!"); 
+      toast("배정할 상담원을 선택해주세요!"); 
       return;
     }
 
     try {
-      // ✅ [수정 2] API 호출 시 Number() 형변환 제거 (문자열 ID 그대로 전송)
       await customerApi.assignAgent(targetCustomer.id, selectedAgentId);
-      alert("✅ 배정되었습니다.");
+      toast("✅ 배정되었습니다.");
       setTargetCustomer(null); // 모달 닫기
       fetchData(); // 데이터 새로고침
     } catch (error) {
       console.error(error);
-      alert("❌ 배정 실패: 서버 오류가 발생했습니다.");
+      toast.error("❌ 배정 실패: 서버 오류가 발생했습니다.");
     }
   };
 
@@ -185,7 +189,6 @@ export default function CustomerManagementPage() {
                         size="sm"
                         onClick={() => {
                           setTargetCustomer(customer);
-                          // ✅ [수정 3] 기존 DB 값이 숫자여도 안전하게 문자열로 변환
                           setSelectedAgentId(customer.assigned_agent ? String(customer.assigned_agent) : "");
                         }}
                       >
@@ -211,7 +214,6 @@ export default function CustomerManagementPage() {
               <span className="font-bold">{targetCustomer?.name}</span> 고객님을 담당할 상담원을 선택하세요.
             </div>
             
-            {/* ✅ [수정 4] 여기가 핵심! onChange에서 Number()를 완전히 제거했습니다. */}
             <select
               className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               value={selectedAgentId}

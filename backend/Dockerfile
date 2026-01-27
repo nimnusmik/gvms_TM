@@ -1,7 +1,7 @@
 # backend/Dockerfile
 
 # 1. 파이썬 3.13 슬림 버전 사용 (가볍고 빠름)
-FROM python:3.13-slim
+FROM python:3.12-slim
 
 # 2. 환경 변수 설정
 # - PYTHONDONTWRITEBYTECODE: 파이썬 .pyc 파일 생성 금지 (디스크 절약)

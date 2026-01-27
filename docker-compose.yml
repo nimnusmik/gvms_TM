@@ -1,8 +1,7 @@
-# docker-compose.yml
-# version: "3.9"
+version: "3.9"
 
 services:
-  # 1. 데이터베이스 (PostgreSQL)
+  # 1. 데이터베이스
   tm_db:
     image: postgres:16
     container_name: tm_postgres
@@ -20,7 +19,7 @@ services:
       retries: 5
       timeout: 5s
     ports:
-      - "5432:5432" # 로컬 DB 관리 툴(DBeaver 등) 접속용
+      - "5432:5432"
     restart: unless-stopped
     networks:
       - tm_net
@@ -29,30 +28,35 @@ services:
   tm_backend:
     build: ./backend
     container_name: tm_backend
+    # 마이그레이션 수행 후 서버 실행
     command: >
       sh -c "python manage.py migrate &&
              python manage.py runserver 0.0.0.0:8000"
     volumes:
-      - ./backend:/app # 코드 수정 시 즉시 반영 (Hot Reload)
+      - ./backend:/app
+      - tm_media_data:/app/media # 🌟 엑셀 파일 공유용 볼륨
     ports:
       - "8000:8000"
     depends_on:
       tm_db:
-        condition: service_healthy # DB가 완전히 켜진 뒤에 Django 실행 (중요!)
+        condition: service_healthy
+      tm_redis:
+        condition: service_started
     env_file:
       - .env
     restart: unless-stopped
     environment:
+      - CELERY_BROKER_URL=redis://tm_redis:6379/0
+      - CELERY_RESULT_BACKEND=django-db
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST} # settings.py가 이걸 읽음
+      - POSTGRES_HOST=${POSTGRES_HOST}
       - POSTGRES_PORT=${POSTGRES_PORT}
-
     networks:
       - tm_net
 
-  # 3. Redis (캐시 및 추후 비동기 작업용)
+  # 3. Redis
   tm_redis:
     image: redis:7-alpine
     container_name: tm_redis
@@ -62,9 +66,37 @@ services:
     networks:
       - tm_net
 
+  # 4. 🌟 [필수] Celery Worker (이 부분이 누락되어 있었을 겁니다)
+  tm_celery_worker:
+    build: ./backend
+    container_name: tm_celery_worker
+    # ⚠️ 주의: 'config' 부분은 본인의 프로젝트 폴더명(settings.py가 있는 곳)으로 확인 후 수정하세요!
+    command: celery -A config worker --loglevel=info 
+    volumes:
+      - ./backend:/app
+      - tm_media_data:/app/media # 🌟 백엔드와 같은 볼륨 공유 필수
+    env_file:
+      - .env
+    environment:
+      - CELERY_BROKER_URL=redis://tm_redis:6379/0
+      - CELERY_RESULT_BACKEND=django-db
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+    depends_on:
+      - tm_db
+      - tm_redis
+      - tm_backend
+    restart: unless-stopped
+    networks:
+      - tm_net
+
 volumes:
   tm_postgres_data:
   tm_redis_data:
+  tm_media_data: # 🌟 미디어 볼륨 정의
 
 networks:
   tm_net:

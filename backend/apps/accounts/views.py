@@ -20,6 +20,7 @@ class LoginView(TokenObtainPairView):
 # 2. 계정 관리 CRUD
 class AccountViewSet(viewsets.ModelViewSet):
     queryset = Account.objects.all().order_by('-created_at')
+    # 조건문 
     permission_classes = [IsAuthenticated] 
     serializer_class = AccountSerializer
     

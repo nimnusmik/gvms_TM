@@ -25,6 +25,8 @@ env = environ.Env(
 
 environ.Env.read_env(os.path.join(BASE_DIR.parent, '.env'))
 
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://127.0.0.1:6379/0')
+
 SECRET_KEY = env('SECRET_KEY')
 DEBUG = env.bool('DEBUG', default=True)
 
@@ -56,6 +58,10 @@ INSTALLED_APPS = [
     'corsheaders',
 
     'accounts',
+    'agents',
+    'customers',
+
+    'django_celery_results',
 ]
 
 MIDDLEWARE = [

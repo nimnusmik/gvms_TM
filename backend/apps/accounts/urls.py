@@ -7,7 +7,8 @@ router.register(r'accounts', AccountViewSet) # /api/v1/accounts/
 router.register(r'levels', LevelViewSet)     # /api/v1/levels/
 
 urlpatterns = [
-    path('auth/login/', LoginView.as_view(), name='login'),
-    path('auth/signup/', RegisterView.as_view(), name='signup'),
+    path('login/', LoginView.as_view(), name='login'),
+    path('signup/', RegisterView.as_view(), name='signup'),
     path('', include(router.urls)),
 ]
+

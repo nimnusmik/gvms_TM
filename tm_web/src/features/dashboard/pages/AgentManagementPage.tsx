@@ -3,18 +3,13 @@ import { agentApi } from "../api/agentApi";
 import { Agent, AgentRole } from "../types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Plus, Search, MoreHorizontal, UserPlus } from "lucide-react";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 export default function AgentManagementPage() {
   //const { user } = useAuthStore();
@@ -71,11 +66,11 @@ export default function AgentManagementPage() {
         daily_cap: 50,
         role: AgentRole.AGENT,
       });
-      alert("등록되었습니다.");
+      toast("등록되었습니다.");
       setIsModalOpen(false);
       fetchAgents();
     } catch (error) {
-      alert("등록 실패");
+      toast("등록 실패");
     }
   };
 
@@ -85,10 +80,10 @@ export default function AgentManagementPage() {
     
     try {
       await agentApi.deleteAgent(agentId);
-      alert("해제되었습니다.");
+      toast("해제되었습니다.");
       fetchAgents(); // 목록 새로고침
     } catch (error) {
-      alert("삭제 실패: 시스템 오류");
+      toast("삭제 실패: 시스템 오류");
     }
   };
 
@@ -101,11 +96,11 @@ export default function AgentManagementPage() {
         status: editingAgent.status,
         role: editingAgent.role
       });
-      alert("수정되었습니다.");
+      toast("수정되었습니다.");
       setEditingAgent(null); // 모달 닫기
       fetchAgents(); // 목록 새로고침
     } catch (error) {
-      alert("수정 실패");
+      toast.error("수정 실패");
     }
   };
 

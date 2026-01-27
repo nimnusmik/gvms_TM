@@ -21,7 +21,7 @@ export const customerApi = {
     return response.data;
   },
 
-  assignAgent: async (customerId: number, agentId: number) => {
+  assignAgent: async (customerId: number, agentId: string) => {
     // 부분 수정(Patch)으로 assigned_agent 필드만 업데이트
     const response = await api.patch(`/customers/${customerId}/`, {
       assigned_agent: agentId,
