@@ -4,7 +4,8 @@ import SignupPage from '@/features/auth/pages/SignupPage';
 import DashboardLayout from '@/features/dashboard/components/DashboardLayout';
 import DashboardOverviewPage from '@/features/dashboard/pages/DashboardOverviewPage';
 import AgentManagementPage from '@/features/dashboard/pages/AgentManagementPage';
-import ProtectedRoute from '@/features/auth/components/ProtectedRoute'; // 👈 보안 요원 데려오기
+import CustomerManagementPage from '@/features/dashboard/pages/CustomerManagementPage';
+import ProtectedRoute from '@/features/auth/components/ProtectedRoute'; 
 
 export const router = createBrowserRouter([
   // 1. 누구나 접속 가능한 페이지
@@ -40,6 +41,10 @@ export const router = createBrowserRouter([
       {
         path: 'agents', // /dashboard/agents 접속 시
         element: <AgentManagementPage />,
+      },
+      {
+        path: 'customers', // /dashboard/customer 접속 시
+        element: <CustomerManagementPage />,
       },
     ],
   },

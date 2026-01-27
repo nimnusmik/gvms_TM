@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'
-import { Toaster } from "@/components/ui/sonner" // 👈 여기로 이사 옴
+import { Toaster } from "@/components/ui/sonner" 
 import { router } from './routes/router'
 import './index.css'
 

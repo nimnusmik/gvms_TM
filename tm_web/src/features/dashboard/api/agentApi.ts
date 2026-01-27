@@ -19,5 +19,15 @@ export const agentApi = {
   getCandidates: async () => {
     const response = await api.get<Candidate[]>('/agents/candidates/');
     return response.data;
-  }
+  }, 
+
+  updateAgent: async (id: string, data: Partial<Agent>) => {
+    const response = await api.patch(`/agents/${id}/`, data);
+    return response.data;
+  },
+
+  // ✨ 2. 등록 해제/삭제 (DELETE)
+  deleteAgent: async (id: string) => {
+    await api.delete(`/agents/${id}/`);
+  },
 };

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { agentApi } from "../api/agentApi";
 import { Agent, AgentRole } from "../types";
-import { useAuthStore } from "@/features/auth/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,12 +17,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export default function AgentManagementPage() {
-  const { user } = useAuthStore();
+  //const { user } = useAuthStore();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [candidates, setCandidates] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
 
   // 데이터 로딩
   const fetchAgents = async () => {
@@ -56,12 +56,18 @@ export default function AgentManagementPage() {
   };
 
   const handleCreate = async (accountId: number) => {
-    if (!confirm("해당 직원을 상담원으로 등록하시겠습니까?")) return;
+    // 1. 후보자 정보 찾기
+    const candidate = candidates.find((c) => c.id === accountId);
+    if (!candidate) return;
+
+    // 2. 확인 메시지 (이름이 이미 있으니까 바로 확인)
+    // candidate.name이 가입할 때 쓴 진짜 이름입니다.
+    if (!confirm(`${candidate.name} 님을 상담원으로 등록하시겠습니까?`)) return;
+
     try {
-      // API 요청 시 정확한 필드명 전송
       await agentApi.createAgent({
         account_id: accountId,
-        name: candidates.find((c) => c.id === accountId)?.email.split("@")[0] || "신규상담원",
+        name: candidate.name, //가입할 때 쓴 이름을 그대로 토스!
         daily_cap: 50,
         role: AgentRole.AGENT,
       });
@@ -72,6 +78,37 @@ export default function AgentManagementPage() {
       alert("등록 실패");
     }
   };
+
+  // 🗑️ 삭제 핸들러
+  const handleDelete = async (agentId: string) => {
+    if (!confirm("정말 이 상담원 등록을 해제하시겠습니까?\n(일반 직원 계정은 유지됩니다)")) return;
+    
+    try {
+      await agentApi.deleteAgent(agentId);
+      alert("해제되었습니다.");
+      fetchAgents(); // 목록 새로고침
+    } catch (error) {
+      alert("삭제 실패: 시스템 오류");
+    }
+  };
+
+  // 📝 수정 저장 핸들러
+  const handleUpdateSave = async () => {
+    if (!editingAgent) return;
+    try {
+      await agentApi.updateAgent(editingAgent.agent_id, {
+        daily_cap: editingAgent.daily_cap,
+        status: editingAgent.status,
+        role: editingAgent.role
+      });
+      alert("수정되었습니다.");
+      setEditingAgent(null); // 모달 닫기
+      fetchAgents(); // 목록 새로고침
+    } catch (error) {
+      alert("수정 실패");
+    }
+  };
+
 
   // 검색 필터링
   const filteredAgents = agents.filter(agent => 
@@ -178,10 +215,19 @@ export default function AgentManagementPage() {
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>작업</DropdownMenuLabel>
-                        <DropdownMenuItem>정보 수정</DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">등록 해제</DropdownMenuItem>
+                      <DropdownMenuContent align="end"
+                      className="bg-white border shadow-lg">
+                        <DropdownMenuLabel></DropdownMenuLabel>
+
+                        <DropdownMenuItem onClick={() => setEditingAgent(agent)}>
+                          정보 수정
+                        </DropdownMenuItem>
+                        
+                        {/* 👇 삭제 버튼: 핸들러 연결 */}
+                        <DropdownMenuItem 
+                          className="text-red-600 focus:text-red-600 focus:bg-red-50" // 마우스 올렸을 때 살짝 붉게
+                          onClick={() => handleDelete(agent.agent_id)}
+                        >등록 해제</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -213,8 +259,13 @@ export default function AgentManagementPage() {
                   className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50 transition-colors"
                 >
                   <div className="flex flex-col">
-                    <span className="font-medium">{candidate.email}</span>
-                    <span className="text-xs text-muted-foreground">ID: {candidate.id}</span>
+                    
+                    <span className="font-bold text-base">
+                      {candidate.name}
+                      {!candidate.name && <span className="text-xs text-red-400 font-normal ml-2">(이름 미입력)</span>}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{candidate.email}</span>
+
                   </div>
                   <Button size="sm" onClick={() => handleCreate(candidate.id)}>
                     <Plus className="w-4 h-4 mr-1" /> 선택
@@ -222,6 +273,52 @@ export default function AgentManagementPage() {
                 </div>
               ))
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 🛠️ 상담원 수정 모달 */}
+      <Dialog open={!!editingAgent} onOpenChange={(open) => !open && setEditingAgent(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>상담원 정보 수정</DialogTitle>
+            <DialogDescription>
+              {editingAgent?.name} ({editingAgent?.code})님의 정보를 수정합니다.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editingAgent && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right text-sm font-medium">일일 배정량</label>
+                <Input
+                  type="number"
+                  value={editingAgent.daily_cap}
+                  onChange={(e) => setEditingAgent({ ...editingAgent, daily_cap: Number(e.target.value) })}
+                  className="col-span-3"
+                />
+              </div>
+              
+              <div className="grid grid-cols-4 items-center gap-4">
+                 <label className="text-right text-sm font-medium">상태</label>
+                 {/* 간단하게 select로 구현 (나중에 shadcn Select로 고도화 가능) */}
+                 <select 
+                    className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                    value={editingAgent.status}
+                    onChange={(e) => setEditingAgent({ ...editingAgent, status: e.target.value as any })}
+                 >
+                    <option value="ONLINE">ONLINE</option>
+                    <option value="OFFLINE">OFFLINE</option>
+                    <option value="BUSY">BUSY</option>
+                    <option value="BREAK">BREAK</option>
+                 </select>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3">
+             <Button variant="outline" onClick={() => setEditingAgent(null)}>취소</Button>
+             <Button onClick={handleUpdateSave}>저장하기</Button>
           </div>
         </DialogContent>
       </Dialog>

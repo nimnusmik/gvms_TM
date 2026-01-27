@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { authApi } from '../api/authApi'
 import { toast } from "sonner"
 import { storage } from '@/lib/storage'
-import { Building2, Command } from 'lucide-react'
 
 // Shadcn UI 컴포넌트
 import { Button } from "@/components/ui/button"

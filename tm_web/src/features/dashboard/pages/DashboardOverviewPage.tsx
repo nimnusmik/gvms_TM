@@ -45,7 +45,6 @@ export default function DashboardOverviewPage() {
 
   return (
     <div className="space-y-6">
-      {/* 1. 헤더 영역 */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">대시보드</h2>
