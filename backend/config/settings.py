@@ -22,7 +22,10 @@ sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
 env = environ.Env(
     DEBUG=(bool,False)
 )
-environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+
+environ.Env.read_env(os.path.join(BASE_DIR.parent, '.env'))
+
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://127.0.0.1:6379/0')
 
 SECRET_KEY = env('SECRET_KEY')
 DEBUG = env.bool('DEBUG', default=True)
@@ -37,7 +40,7 @@ DEBUG = env.bool('DEBUG', default=True)
 # ALLOWED_HOSTS = [] 
 
 # 안드로이드 에뮬레이터는 컴퓨터의 localhost를 10.0.2.2라는 특수한 주소로 인식
-ALLOWED_HOSTS = ['*'] # "어떤 주소로 들어오든 다 받아주겠다 -> 나중에 실제 배포할 때만 진짜 도메인으로 변경
+ALLOWED_HOSTS = [] # "어떤 주소로 들어오든 다 받아주겠다 -> 나중에 실제 배포할 때만 진짜 도메인으로 변경
 
 # Application definition
 
@@ -52,17 +55,17 @@ INSTALLED_APPS = [
     # 3rd Party
     'rest_framework',
     'rest_framework_simplejwt',
+    'corsheaders',
 
-    'apps.users.apps.UsersConfig',
-    
-    # My Apps
-    'apps.calls',
-    'apps.common',
+    'accounts',
+    'agents',
+    'customers',
+
+    'django_celery_results',
 ]
 
-AUTH_USER_MODEL = 'users.User'
-
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -72,7 +75,23 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+AUTH_USER_MODEL = 'accounts.Account' #user의 Account모델을 인증용으로 쓰겠음
+
 ROOT_URLCONF = 'config.urls'
+
+#CORS 설정
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+# DRF 설정 (JWT 사용)
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
+}
+
 
 TEMPLATES = [
     {
@@ -98,7 +117,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('POSTGRES_DB', 'tm_db'),
+        'NAME': os.getenv('POSTGRES_DB'),
         'USER': os.getenv('POSTGRES_USER', 'postgres'),
         'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'postgres123!'),
         
@@ -118,6 +137,7 @@ REST_FRAMEWORK =  {
 from datetime import timedelta
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=12),
+    'USER_ID_FIELD': 'account_id',
 
 }
 
