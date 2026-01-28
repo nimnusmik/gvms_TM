@@ -7,35 +7,50 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { UploadCloud, Search, UserCog } from "lucide-react";
+import { Pagination } from "@/components/common/Pagination";
+import { UploadCloud, Search, UserCog, Filter } from "lucide-react";
 import { toast } from "sonner";
 
 export default function CustomerManagementPage() {
   // 데이터 상태
   const [customers, setCustomers] = useState<Customer[]>([]);
+
   const [agents, setAgents] = useState<Agent[]>([]); 
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   
   // 기능 상태
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // 배정 모달 상태
   const [targetCustomer, setTargetCustomer] = useState<Customer | null>(null);
-  
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
 
+  // 필터 상태 관리
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [agentFilter, setAgentFilter] = useState("ALL");
+
   // 1. 초기 데이터 로딩
-  const fetchData = async () => {
+  const fetchData = async (page: number) => {
     setIsLoading(true);
     try {
-      const [customerData, agentData] = await Promise.all([
-        customerApi.getCustomers(),
-        agentApi.getAgents()
-      ]);
-      setCustomers(customerData);
-      setAgents(agentData);
+        const [customerRes, agentData] = await Promise.all([
+          customerApi.getCustomers({ 
+            page, 
+            status: statusFilter, 
+            agentId: agentFilter 
+          }),
+          agentApi.getAgents()
+        ]);
+
+      // DRF 응답 구조에 맞춰서 데이터 세팅
+      setCustomers(customerRes.results); 
+      setTotalCount(customerRes.count);
+      setAgents(agentData); // (참고: Agent API도 페이지네이션 적용했다면 수정 필요)
+
     } catch (error) {
       console.error("데이터 로딩 실패:", error);
     } finally {
@@ -44,8 +59,15 @@ export default function CustomerManagementPage() {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    fetchData(1); 
+    setCurrentPage(1); // 페이지도 1로 초기화
+  }, [statusFilter, agentFilter]); 
+
+  useEffect(() => {
+    fetchData(currentPage);
+  }, [currentPage]);
+
+  const totalPages = Math.ceil(totalCount / 20);
 
   // 2. 엑셀 업로드 핸들러
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,7 +91,7 @@ export default function CustomerManagementPage() {
       
       toast(`✅ ${response.message || "업로드가 완료되었습니다!"}`); 
       
-      fetchData(); 
+      fetchData(1); 
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || "업로드 실패: 파일 형식을 확인해주세요.";
       toast(`❌ ${errorMsg}`);
@@ -90,7 +112,7 @@ export default function CustomerManagementPage() {
       await customerApi.assignAgent(targetCustomer.id, selectedAgentId);
       toast("✅ 배정되었습니다.");
       setTargetCustomer(null); // 모달 닫기
-      fetchData(); // 데이터 새로고침
+      fetchData(1); // 데이터 새로고침
     } catch (error) {
       console.error(error);
       toast.error("❌ 배정 실패: 서버 오류가 발생했습니다.");
@@ -139,16 +161,65 @@ export default function CustomerManagementPage() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 bg-white p-2 rounded-lg border w-full md:w-1/3">
-        <Search className="w-4 h-4 text-muted-foreground ml-2" />
-        <Input 
-          placeholder="고객명, 전화번호 검색" 
-          className="border-0 focus-visible:ring-0"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
+      <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-lg border items-end md:items-center">
+        
+        {/* 🔍 검색창 */}
+        <div className="flex-1 flex items-center gap-2 border rounded-md px-3 py-2 w-full">
+          <Search className="w-4 h-4 text-muted-foreground" />
+          <Input 
+            placeholder="고객명, 전화번호 검색..." 
+            className="border-0 p-0 focus-visible:ring-0 h-auto"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
 
+        {/* 🌪️ 필터 영역 */}
+        <div className="flex gap-2 w-full md:w-auto">
+          
+          {/* 상태 필터 */}
+          <select
+            className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="ALL">전체 상태</option>
+            <option value="NEW">접수(신규)</option>
+            <option value="ASSIGNED">배정됨</option>
+            <option value="SUCCESS">성공(계약)</option>
+            <option value="REJECT">거절</option>
+            <option value="INVALID">결번/오류</option>
+          </select>
+
+          {/* 담당자 필터 */}
+          <select
+            className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+            value={agentFilter}
+            onChange={(e) => setAgentFilter(e.target.value)}
+          >
+            <option value="ALL">전체 담당자</option>
+            {/* 상담원 목록이 로딩된 후에 옵션 생성 */}
+            {agents.map(agent => (
+              <option key={agent.agent_id} value={agent.agent_id}>
+                {agent.name}
+              </option>
+            ))}
+          </select>
+
+          {/* 필터 초기화 버튼 (선택 사항) */}
+          {(statusFilter !== "ALL" || agentFilter !== "ALL") && (
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => { setStatusFilter("ALL"); setAgentFilter("ALL"); }}
+              title="필터 초기화"
+            >
+              <Filter className="w-4 h-4 text-muted-foreground" />
+            </Button>
+          )}
+        </div>
+      </div>
+      
       <div className="rounded-md border bg-white shadow-sm">
         <Table>
           <TableHeader>
@@ -201,6 +272,14 @@ export default function CustomerManagementPage() {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      <div className="flex justify-end">
+        <Pagination 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={(page) => setCurrentPage(page)}
+        />
       </div>
 
       <Dialog open={!!targetCustomer} onOpenChange={(open) => !open && setTargetCustomer(null)}>

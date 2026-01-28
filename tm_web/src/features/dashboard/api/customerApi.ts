@@ -1,12 +1,22 @@
 import { api } from '@/lib/axios';
-import { Customer } from '../types';
+import { Customer, PaginatedResponse, CustomerParams } from '../types';
 
 export const customerApi = {
-  // 1. 고객 목록 조회
-  getCustomers: async () => {
-    const response = await api.get<Customer[]>('/customers/');
-    return response.data;
-  },
+    // ✨ [수정] 파라미터를 객체로 받도록 변경
+    getCustomers: async (params: CustomerParams) => {
+      const { page = 1, status, agentId } = params;
+      
+      // URL 파라미터 생성 (URLSearchParams 사용)
+      const queryParams = new URLSearchParams();
+      queryParams.append('page', page.toString());
+      
+      if (status && status !== 'ALL') queryParams.append('status', status);
+      if (agentId && agentId !== 'ALL') queryParams.append('assigned_agent', agentId);
+      // if (search) queryParams.append('search', search); // 백엔드 검색 구현 시 사용
+  
+      const response = await api.get<PaginatedResponse<Customer>>(`/customers/?${queryParams.toString()}`);
+      return response.data;
+    },
 
   // 2. 엑셀 업로드 (핵심!)
   uploadExcel: async (file: File) => {

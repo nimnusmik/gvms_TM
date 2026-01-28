@@ -16,6 +16,8 @@ class AgentViewSet(viewsets.ModelViewSet):
     
     # 2. 기본 시리얼라이저: 관리자용 (생성/수정 등 모든 필드 포함)
     serializer_class = AgentAdminSerializer
+
+    pagination_class = None # 상담원 API만 페이지네이션 없이 '통짜 배열'을 줍니다.
     
     # 3. 권한 설정: 로그인한 사람만 접근 가능
     permission_classes = [IsAuthenticated]

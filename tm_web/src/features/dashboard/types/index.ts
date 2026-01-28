@@ -60,3 +60,17 @@ export interface DashboardStats {
   total_agents: number;
   success_rate: number;
 }
+
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+export interface CustomerParams {
+  page?: number;
+  status?: string;
+  agentId?: string; // "null" 또는 숫자 ID
+  search?: string;  // 검색어도 서버 필터링 가능하면 좋음 (현재는 프론트 필터인듯 하지만 일단 준비)
+}
