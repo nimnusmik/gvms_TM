@@ -1,10 +1,11 @@
 import { api } from '@/lib/axios';
-import { Customer, PaginatedResponse, CustomerParams } from '../types';
+import { PaginatedResponse,} from '../../dashboard/types';
+import { Customer, CustomerParams } from '../types';
 
 export const customerApi = {
 
     getCustomers: async (params: CustomerParams) => {
-      const { page = 1, status, agentId } = params;
+      const { page = 1, status, agentId, search } = params;
       
       // URL 파라미터 생성 (URLSearchParams 사용)
       const queryParams = new URLSearchParams();
@@ -12,7 +13,7 @@ export const customerApi = {
       
       if (status && status !== 'ALL') queryParams.append('status', status);
       if (agentId && agentId !== 'ALL') queryParams.append('assigned_agent', agentId);
-      // if (search) queryParams.append('search', search); // 백엔드 검색 구현 시 사용
+      if (search) queryParams.append('search', search); // 백엔드 검색 구현 시 사용
   
       const response = await api.get<PaginatedResponse<Customer>>(`/customers/?${queryParams.toString()}`);
       return response.data;
@@ -39,5 +40,10 @@ export const customerApi = {
     });
     return response.data;
     },
-  
+    
+  bulkAssign: async (payload: { ids: number[]; agent_id: string }) => {
+    // 백엔드가 url_path='bulk-assign' (하이픈)으로 되어있는지 꼭 확인!
+    const { data } = await api.post('/customers/bulk-assign/', payload);
+    return data;
+  },
 };
