@@ -3,7 +3,7 @@ import LoginPage from '@/features/auth/pages/LoginPage';
 import SignupPage from '@/features/auth/pages/SignupPage';
 import DashboardLayout from '@/features/dashboard/components/DashboardLayout';
 import DashboardOverviewPage from '@/features/dashboard/pages/DashboardOverviewPage';
-import AgentManagementPage from '@/features/dashboard/pages/AgentManagementPage';
+import AgentManagementPage from '@/features/agents/pages/AgentManagementPage';
 import CustomerManagementPage from '@/features/customers/pages/CustomerManagementPage';
 import ProtectedRoute from '@/features/auth/components/ProtectedRoute'; 
 

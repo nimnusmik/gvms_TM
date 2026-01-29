@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { agentApi } from '@/features/dashboard/api/agentApi';
-import type { Agent } from '@/features/dashboard/types';
+import { agentApi } from '@/features/agents/api/agentApi';
+import type { Agent } from '@/features/agents/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"; // Shadcn UI 사용 시
 import { Button } from '@/components/ui/button';
 

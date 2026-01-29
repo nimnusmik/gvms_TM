@@ -10,8 +10,8 @@ class AgentAdminSerializer(serializers.ModelSerializer):
     account_id = serializers.IntegerField(write_only=True)
     
     code = serializers.CharField(read_only=True)
-    account_email = serializers.EmailField(source='account.email', read_only=True)
-
+    email = serializers.EmailField(source='account.email', read_only=True)
+    
     class Meta:
         model = Agent
         fields = '__all__'
