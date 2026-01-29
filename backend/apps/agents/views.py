@@ -85,6 +85,7 @@ class AgentViewSet(viewsets.ModelViewSet):
         total_customers = Customer.objects.count()
         success_customers = Customer.objects.filter(status=Customer.Status.SUCCESS).count()
 
+
         # 3. 성공률
         if total_customers > 0:
             success_rate = (success_customers / total_customers) * 100
@@ -92,7 +93,7 @@ class AgentViewSet(viewsets.ModelViewSet):
             success_rate = 0
 
         data = {
-            "total_calls": 0,
+            "total_customers": total_customers,
             "active_agents": active_agents,
             "total_agents": total_agents,
             "success_rate": round(success_rate, 1)

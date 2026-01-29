@@ -7,20 +7,15 @@ User = get_user_model()
 
 # 1. 관리자용: 상담원 생성/수정 (모든 권한)
 class AgentAdminSerializer(serializers.ModelSerializer):
-    # 입력받을 때는 ID로 받음 (User 테이블의 PK)
     account_id = serializers.IntegerField(write_only=True)
     
     code = serializers.CharField(read_only=True)
-    # 보여줄 때는 이메일도 보여줌
+    
     account_email = serializers.EmailField(source='account.email', read_only=True)
 
     class Meta:
         model = Agent
-        fields = [
-            'agent_id', 'code', 'account_id', 'account_email', 
-            'name', 'assigned_phone', 'daily_cap', 
-            'role', 'status', 'is_auto_assign', 'created_at'
-        ]
+        fields = '__all__'
 
     
     def create(self, validated_data):
@@ -59,6 +54,6 @@ class AgentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agent
         fields = [
-            'agent_id', 'name', 'email', 'assigned_phone', 
+            'agent_id', 'name', 'agent_name', 'email', 'assigned_phone', 
             'role', 'status', 'daily_cap', 'is_auto_assign'
         ]
