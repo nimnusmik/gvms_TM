@@ -31,3 +31,4 @@ export const agentApi = {
     await api.delete(`/agents/${id}/`);
   },
 };
+

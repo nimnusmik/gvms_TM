@@ -65,7 +65,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-
+        # 토큰 안에 정보 넣기 (이건 암호화되어 날아감)
         token['is_staff'] = user.is_staff
         token['name'] = user.name       
         token['email'] = user.email
@@ -73,12 +73,23 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
-        # 1. 부모님(super) 기술로 먼저 검증하고 토큰을 받아옵니다.
+        # 1. 기본 로그인 수행 (access, refresh 토큰 생성)
         data = super().validate(attrs)
 
-        # 2. 받아온 데이터 가방(data)에 'is_staff'를 몰래 집어넣습니다.
-        data['is_staff'] = self.user.is_staff
-        # data['email'] = self.user.email # 필요하면 이메일도 추가
+        # 2. 🌟 [수정] 프론트엔드 AuthResponse 타입에 맞춰서 'user' 객체 구성
+        user_data = {
+            "account_id": self.user.account_id,
+            "email": self.user.email,
+            "name": self.user.name,
+            "is_staff": self.user.is_staff,
+            "level": {
+                "level_id": self.user.level.level_id if self.user.level else 0,
+                "level_name": self.user.level.level_name if self.user.level else "Unknown"
+            }
+        }
+
+        # 3. 응답 데이터에 포함시키기
+        data['user'] = user_data        # 👈 프론트: response.data.user
+        data['is_staff'] = self.user.is_staff # 👈 프론트: response.data.is_staff (편의상 밖에도 하나 둠)
 
         return data
-    

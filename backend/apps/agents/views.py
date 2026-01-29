@@ -73,22 +73,29 @@ class AgentViewSet(viewsets.ModelViewSet):
             
         return super().destroy(request, *args, **kwargs)
 
-class DashboardStatsView(APIView):
-    permission_classes = [IsAuthenticated]
+    @action(detail=False, methods=['get'], url_path='dashboard_stats')
+    def dashboard_stats(self, request):
+        from apps.customers.models import Customer 
 
-    def get(self, request):
-        # 1. 상담원 통계 (실제 DB 데이터)
+        # 1. [상담원] 통계
         total_agents = Agent.objects.count()
-        active_agents = Agent.objects.filter(status=AgentStatus.ONLINE).count()
-        
-        # 2. 통화 통계 (아직 Call 모델이 없으므로 임시 값 전송)
-        # 나중에 Call 모델을 만들면: Call.objects.filter(created_at__date=today).count() 로 변경
-        total_calls = 0 
-        success_rate = 0.0
+        active_agents = Agent.objects.exclude(status='OFFLINE').count()
 
-        return Response({
-            "total_calls": total_calls,
+        # 2. [고객] 통계
+        total_customers = Customer.objects.count()
+        success_customers = Customer.objects.filter(status=Customer.Status.SUCCESS).count()
+
+        # 3. 성공률
+        if total_customers > 0:
+            success_rate = (success_customers / total_customers) * 100
+        else:
+            success_rate = 0
+
+        data = {
+            "total_calls": 0,
             "active_agents": active_agents,
             "total_agents": total_agents,
-            "success_rate": success_rate
-        })
+            "success_rate": round(success_rate, 1)
+        }
+        
+        return Response(data)

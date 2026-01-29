@@ -15,11 +15,10 @@ from .serializers import CustomerSerializer
 from .tasks import process_excel_upload
 
 class CustomerViewSet(viewsets.ModelViewSet):
-    queryset = Customer.objects.all() 
-    
+    queryset = Customer.objects.all()     
     serializer_class = CustomerSerializer
     
-    # 🔍 [핵심 1] 라이브러리 안 쓰고 직접 필터링 (무조건 작동함)
+
     def get_queryset(self):
         # 1. 기본: 최신순 조회
         queryset = Customer.objects.all().order_by('-created_at')

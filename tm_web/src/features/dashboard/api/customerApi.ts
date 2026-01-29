@@ -2,7 +2,7 @@ import { api } from '@/lib/axios';
 import { Customer, PaginatedResponse, CustomerParams } from '../types';
 
 export const customerApi = {
-    // ✨ [수정] 파라미터를 객체로 받도록 변경
+
     getCustomers: async (params: CustomerParams) => {
       const { page = 1, status, agentId } = params;
       

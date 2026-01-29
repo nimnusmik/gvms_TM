@@ -67,7 +67,7 @@ export default function CustomerManagementPage() {
     fetchData(currentPage);
   }, [currentPage]);
 
-  const totalPages = Math.ceil(totalCount / 20);
+  const totalPages = Math.ceil(totalCount / 50);
 
   // 2. 엑셀 업로드 핸들러
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
