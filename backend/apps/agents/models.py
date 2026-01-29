@@ -17,8 +17,21 @@ class AgentStatus(models.TextChoices):
     BREAK = 'BREAK', '휴식중',
     BUSY = 'BUSY', '통화중'
 
+class Team(models.TextChoices):
+        BATTERY = 'BATTERY', '배터리'
+        MOBILITY = 'MOBILITY', '모빌리티'
+        SOLAR = 'SOLAR', '태양광'
+        MACHINE = 'MACHINE', '산업기계'
 
 class Agent(models.Model):
+    team = models.CharField(
+        max_length=20, 
+        choices=Team.choices, 
+        null=True,   
+        blank=True,  
+        verbose_name="소속 팀"
+    )
+
     agent_id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -64,7 +77,6 @@ class Agent(models.Model):
             self.code = self.generate_unique_code()
         super().save(*args, **kwargs)
 
-    # ✨ [추가] 코드 생성 로직 (랜덤 6자리)
     def generate_unique_code(self):
         prefix = "TM"
         
@@ -77,7 +89,6 @@ class Agent(models.Model):
             if not Agent.objects.filter(code=new_code).exists():
                 return new_code
 
-    
     class Meta:
         db_table = 'tm_agents'
         ordering = ['-created_at']
