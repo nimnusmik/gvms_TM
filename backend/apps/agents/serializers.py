@@ -10,12 +10,12 @@ class AgentAdminSerializer(serializers.ModelSerializer):
     account_id = serializers.IntegerField(write_only=True)
     
     code = serializers.CharField(read_only=True)
-    
     account_email = serializers.EmailField(source='account.email', read_only=True)
 
     class Meta:
         model = Agent
         fields = '__all__'
+        read_only_fields = ['code', 'created_at', 'account', 'name']
 
     
     def create(self, validated_data):
@@ -33,11 +33,9 @@ class AgentAdminSerializer(serializers.ModelSerializer):
              raise serializers.ValidationError({"account_id": "이미 등록된 상담원입니다."})
 
         # 4. 저장! (code는 모델의 save()에서 자동 생성됨)
-        agent = Agent.objects.create(account=user, **validated_data)
+        agent = Agent.objects.create(account=user, name=user.name, **validated_data)
         
         return agent
-
-
 
 # 2. 드롭다운용: 간단한 유저 정보 (후보자 목록)
 class AccountSimpleSerializer(serializers.ModelSerializer):
@@ -55,5 +53,6 @@ class AgentSerializer(serializers.ModelSerializer):
         model = Agent
         fields = [
             'agent_id', 'name', 'agent_name', 'email', 'assigned_phone', 
-            'role', 'status', 'daily_cap', 'is_auto_assign'
+            'role', 'status', 'daily_cap', 'is_auto_assign',
+            'team'
         ]
