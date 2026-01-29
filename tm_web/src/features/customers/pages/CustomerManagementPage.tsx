@@ -1,14 +1,12 @@
 // src/features/customers/pages/CustomerManagementPage.tsx
-
-import { useState, useEffect, useRef } from 'react'; // ✨ useRef 추가
+import { useState, useEffect, useRef } from 'react'; 
 import { customerApi } from '../api/customerApi';
 import type { Customer } from '@/features/customers/types';
 import AssignAgentModal from '../components/AssignAgentModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, ChevronLeft, ChevronRight, RefreshCcw, X, UploadCloud } from 'lucide-react'; // ✨ UploadCloud 추가
-import { toast } from "sonner"; // ✨ toast 추가 (없으면 설치 필요)
-import { agentApi } from '@/features/dashboard/api/agentApi';
+import { toast } from "sonner"; 
 
 export default function CustomerManagementPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
