@@ -1,10 +1,11 @@
-// src/features/agents/components/AgentTable.tsx
-
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, UserCog } from "lucide-react";
-import { TEAMS } from "../types/"; // 상수 import
+import { MoreHorizontal } from "lucide-react";
+
+// ✅ 공통 컴포넌트 활용
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { TeamBadge } from "@/components/common/TeamBadge";
+
 import type { Agent } from "../types";
 
 interface AgentTableProps {
@@ -14,11 +15,6 @@ interface AgentTableProps {
 }
 
 export function AgentTable({ agents, isLoading, onEdit }: AgentTableProps) {
-  // 팀 이름 찾기 헬퍼
-  const getTeamLabel = (teamCode: string | null) => {
-    return TEAMS.find(t => t.value === teamCode)?.label || teamCode;
-  };
-
   return (
     <div className="bg-white rounded-lg shadow border overflow-hidden">
       <Table>
@@ -49,35 +45,26 @@ export function AgentTable({ agents, isLoading, onEdit }: AgentTableProps) {
           ) : (
             agents.map((agent) => (
               <TableRow key={agent.agent_id}>
-                {/* 1. 상태 */}
+                {/* 1. 상태 (공통 컴포넌트 사용) */}
                 <TableCell>
-                  <Badge variant={agent.status === 'ONLINE' ? 'default' : 'secondary'} className="font-normal">
-                    {agent.status}
-                  </Badge>
+                  <StatusBadge status={agent.status} />
                 </TableCell>
 
-                {/* 2. 상담원 정보 */}
+                {/* 2. 상담원 정보 (공통 컴포넌트 사용) */}
                 <TableCell>
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">
-                      {agent.name.slice(0, 2)}
-                    </div>
-                    <div>
-                      <div className="font-medium text-sm">{agent.name}</div>
-                      <div className="text-xs text-gray-400">{agent.email}</div>
-                    </div>
+                <div className="flex flex-col justify-center">
+                  <div className="font-medium text-sm text-gray-900">
+                      {agent.name}
                   </div>
+                  <div className="text-xs text-gray-400 mt-0.5">
+                      {agent.email}
+                  </div>
+                </div>
                 </TableCell>
 
-                {/* 3. 소속 팀 */}
+                {/* 3. 소속 팀 (공통 컴포넌트 사용 - 미배정 로직 내장됨) */}
                 <TableCell>
-                  {agent.team ? (
-                    <Badge variant="outline" className="text-blue-600 bg-blue-50 border-blue-200">
-                      {getTeamLabel(agent.team)}
-                    </Badge>
-                  ) : (
-                    <span className="text-gray-400 text-xs">미배정</span>
-                  )}
+                  <TeamBadge team={agent.team} />
                 </TableCell>
 
                 {/* 4. 사번 */}
