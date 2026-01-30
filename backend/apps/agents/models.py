@@ -31,16 +31,15 @@ class Agent(models.Model):
         editable=False
     )
 
-    # 1:1 관계 (User 테이블과 연결) - account 필드는 삭제했습니다 (중복)
+    # 1:1 관계 - 한 명의 유저는 오직 하나의 상담원 프로필만 가질 수 있다
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE, 
         related_name='agent_profile'
     )
 
-    # 기본 정보
-    name = models.CharField(max_length=50, verbose_name="상담원 이름")
-    
+    # Account에서 가져오자
+    # name = models.CharField(max_length=50, verbose_name="상담원 이름")
     
     # 업무용 폰 
     assigned_phone = models.CharField(

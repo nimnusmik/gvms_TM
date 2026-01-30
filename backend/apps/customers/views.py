@@ -102,6 +102,6 @@ class CustomerViewSet(viewsets.ModelViewSet):
 
         # 5. [응답]
         return Response({
-            "message": f"성공적으로 {updated_count}명의 고객을 {agent.name}님에게 배정했습니다.",
+            "message": f"성공적으로 {updated_count}명의 고객을 {agent.user.name}님에게 배정했습니다.",
             "updated_count": updated_count
         })
