@@ -94,7 +94,7 @@ class Agent(models.Model):
         verbose_name = '상담원 프로필'
 
     def __str__(self):
-        return f"{self.name} ({self.get_role_display()})"
+        return f"{self.user.name} ({self.get_role_display()})"
 
     # 저장 시 사번 자동 생성 로직
     def save(self, *args, **kwargs):

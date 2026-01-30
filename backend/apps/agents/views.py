@@ -122,7 +122,7 @@ class AgentViewSet(viewsets.ModelViewSet):
             # customer_count = agent.customer_set.filter(status='NEW').update(assigned_agent=None)
 
         return Response({
-            "message": f"{agent.name} 님의 퇴사 처리가 완료되었습니다. (로그인 차단됨)",
+            "message": f"{agent.user.name} 님의 퇴사 처리가 완료되었습니다. (로그인 차단됨)",
             "status": agent.status
         })
 
