@@ -19,7 +19,7 @@ class AgentAdminSerializer(serializers.ModelSerializer):
         model = Agent
         fields = '__all__'
         # user 필드는 create에서 우리가 넣어주니 읽기 전용으로 뺍니다.
-        read_only_fields = ['code', 'created_at', 'user']
+        read_only_fields = ['code', 'created_at', 'user'] 
 
     def create(self, validated_data):
         account_id = validated_data.pop('account_id')
@@ -32,8 +32,6 @@ class AgentAdminSerializer(serializers.ModelSerializer):
         if hasattr(user, 'agent_profile'):
              raise serializers.ValidationError({"account_id": "이미 등록된 상담원입니다."})
 
-        # ✨ [수정 2] Agent 모델에서 name을 지웠으니, 저장할 때도 name=...을 빼야 합니다!
-        # (user=user만 연결하면 이름은 알아서 따라옵니다)
         agent = Agent.objects.create(user=user, **validated_data)
         
         return agent
@@ -56,7 +54,6 @@ class AgentSerializer(serializers.ModelSerializer):
         write_only=True
     )
 
-    # ✨ [수정 3] 여기도 똑같이 User에서 가져오라고 명시해야 프론트에서 보입니다.
     name = serializers.CharField(source='user.name', read_only=True)
     email = serializers.CharField(source='user.email', read_only=True)
     
@@ -65,10 +62,10 @@ class AgentSerializer(serializers.ModelSerializer):
         fields = [
             'agent_id', 
             'account_id', 
-            'name',       # 👈 위에서 정의했으니 이제 나옵니다!
+            'name',       
             'email',      
             'team', 
-            'assigned_phone', # ⚠️ 모델 필드명이 assigned_phone이라면 여기도 맞춰야 합니다 (extension_number X)
+            'assigned_phone', 
             'status', 
             'daily_cap', 
             'is_auto_assign', 

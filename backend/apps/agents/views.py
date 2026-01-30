@@ -11,9 +11,9 @@ from .serializers import AgentAdminSerializer, AccountSimpleSerializer, AgentSer
 User = get_user_model()
 
 class AgentViewSet(viewsets.ModelViewSet):
-    # 1. 기본 설정: 모든 상담원 데이터를 최신순으로 가져옴
-    queryset = Agent.objects.all().order_by('-created_at')
-    
+    # 1. 기본 설정: Agent 가져올 때 User 정보도 '미리' 복사해서 가져옴 (빠름!)
+    queryset = Agent.objects.select_related('user').all().order_by('-created_at')    
+
     # 2. 기본 시리얼라이저: 관리자용 (생성/수정 등 모든 필드 포함)
     serializer_class = AgentAdminSerializer
 
