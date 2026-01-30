@@ -1,5 +1,6 @@
 import { api } from '@/lib/axios';
-import type { Agent, Candidate} from '../../dashboard/types';
+import type { Candidate} from '../../dashboard/types';
+import type { Agent} from '../../agents/types';
 
 
 export const agentApi = {

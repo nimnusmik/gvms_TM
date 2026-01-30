@@ -47,6 +47,14 @@ class Account(AbstractBaseUser, PermissionsMixin):
 
     name = models.CharField("이름", max_length=20)
     
+    phone_number = models.CharField(
+        max_length=20, 
+        unique=True, 
+        null=True, 
+        blank=True,
+        verbose_name="휴대폰 번호"
+    )
+    
     # FK 연결: accounts.level_id -> member_levels.level_id
     level = models.ForeignKey(MemberLevel, on_delete=models.PROTECT, related_name='accounts', verbose_name="등급")
     

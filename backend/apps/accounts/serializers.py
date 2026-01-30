@@ -1,7 +1,9 @@
 from rest_framework import serializers
 from .models import Account, MemberLevel
+from apps.agents.models import Agent
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
+from django.db import transaction
 
 User = get_user_model()
 
@@ -39,24 +41,29 @@ class AccountCreateSerializer(serializers.ModelSerializer):
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
+    
+    # 1. Account 모델에는 없지만, 입력은 받아야 하는 필드 추가
+    phone_number = serializers.CharField(write_only=True, required=True)
 
     class Meta:
         model = Account
-        # 👇 중요: 'level', 'is_staff', 'is_active' 같은 건 입력 못하게 뺍니다!
-        fields = ['email', 'password', 'name'] 
+        # 2. fields에 phone_number 추가
+        fields = ['email', 'password', 'name', 'phone_number'] 
 
     def create(self, validated_data):
-
-        default_level = MemberLevel.objects.first()
         
-        if not default_level: MemberLevel.objects.create(level_name="일반사원")
+        default_level = MemberLevel.objects.first()
+        if not default_level: 
+            default_level = MemberLevel.objects.create(level_name="일반사원")
 
         user = Account.objects.create_user(
             email=validated_data['email'],
             password=validated_data['password'],
             name=validated_data['name'],
+            phone_number=validated_data.get('phone_number', ''), # ✨ 전화번호 저장
             level=default_level
         )
+        
         return user
 
 

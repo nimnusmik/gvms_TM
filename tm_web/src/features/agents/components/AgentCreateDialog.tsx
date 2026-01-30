@@ -40,7 +40,7 @@ export function AgentCreateDialog({ isOpen, onClose, onSuccess }: Props) {
         team: config.team
       });
       toast.success("상담원이 등록되었습니다.");
-      onSuccess(); // 부모에게 알림
+      onSuccess();
       onClose();
     } catch (error) {
       toast.error("등록 실패");

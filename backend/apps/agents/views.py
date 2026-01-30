@@ -28,18 +28,23 @@ class AgentViewSet(viewsets.ModelViewSet):
     # ----------------------------------------------------------------
     @action(detail=False, methods=['get'])
     def candidates(self, request):
-        # 1. agent_profile이 없는 사람 (기존 조건)
-        # 2. AND is_superuser가 False인 사람 (관리자 제외)
-        # 3. AND 현재 요청을 보낸 나 자신(request.user)도 제외 (선택사항)
-        
+        # 1. Agent 프로필이 없는(isnull=True) 유저만 찾기
+        # 관리자(is_superuser) 제외, 나 자신 제외
         candidates_query = User.objects.filter(
-            agent_profile__isnull=True,  # 상담원 아님
-            is_superuser=False           # 관리자(Superuser) 아님
-        ).exclude(pk=request.user.pk)    # 나 자신 제외 (혹시 관리자가 아니더라도)
+            agent_profile__isnull=True, 
+            is_superuser=False
+        ).exclude(pk=request.user.pk)
         
-        # 이름과 이메일만 간단하게 리턴
-        serializer = AccountSimpleSerializer(candidates_query, many=True)
-        return Response(serializer.data)
+        # 2. 데이터 가공 
+        data = [{
+            "id": user.pk,
+            "email": user.email,
+            "name": user.name,
+            "phone": user.phone_number, # ✨ User 모델에서 바로 가져옴
+            "date_joined": user.created_at
+        } for user in candidates_query]
+
+        return Response(data)
 
     # ----------------------------------------------------------------
     # 🌟 기능 2: "내 정보" 가져오기 (대시보드 접속 시 사용)

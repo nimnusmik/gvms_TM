@@ -23,6 +23,7 @@ export interface SignupCredentials {
   email: string;
   password: string;
   name: string;
+  phone_number: string;
 }
 
 // 4. 로그인 성공했을 때 서버가 주는 응답 데이터 (토큰 + 유저정보)

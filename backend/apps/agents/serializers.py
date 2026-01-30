@@ -15,7 +15,7 @@ class AgentAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agent
         fields = '__all__'
-        read_only_fields = ['code', 'created_at', 'account', 'name']
+        read_only_fields = ['code', 'created_at', 'user', 'name']
 
     
     def create(self, validated_data):
@@ -33,7 +33,7 @@ class AgentAdminSerializer(serializers.ModelSerializer):
              raise serializers.ValidationError({"account_id": "이미 등록된 상담원입니다."})
 
         # 4. 저장! (code는 모델의 save()에서 자동 생성됨)
-        agent = Agent.objects.create(account=user, name=user.name, **validated_data)
+        agent = Agent.objects.create(user=user, name=user.name, **validated_data)
         
         return agent
 
@@ -47,12 +47,29 @@ class AccountSimpleSerializer(serializers.ModelSerializer):
 
 # 3. 일반용/대시보드용: 내 정보 조회 (읽기 전용 위주)
 class AgentSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(source='account.email', read_only=True)
+    # ✨ [핵심] 프론트에서 'account_id'를 보내면 -> 모델의 'user' 필드에 저장한다!
+    account_id = serializers.PrimaryKeyRelatedField(
+        source='user',          # DB에는 user 컬럼에 저장
+        queryset=User.objects.all(),
+        write_only=True         # 입력받을 때만 사용
+    )
 
+    # 조회할 때 보여줄 정보 (선택사항)
+    name = serializers.CharField(source='user.name', read_only=True)
+    email = serializers.CharField(source='user.email', read_only=True)
+    
     class Meta:
         model = Agent
         fields = [
-            'agent_id', 'name', 'agent_name', 'email', 'assigned_phone', 
-            'role', 'status', 'daily_cap', 'is_auto_assign',
-            'team'
+            'agent_id', 
+            'account_id', # 👈 입력 필드 (필수)
+            'name',       # 조회용
+            'email',      # 조회용
+            'team', 
+            'extension_number', 
+            'status', 
+            'daily_cap', 
+            'is_auto_assign', 
+            'created_at'
         ]
+        read_only_fields = ['agent_id', 'created_at', 'code']
