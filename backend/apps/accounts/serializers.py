@@ -5,6 +5,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 from django.db import transaction
 
+
 User = get_user_model()
 
 # 1. 등급 조회용
@@ -42,28 +43,30 @@ class AccountCreateSerializer(serializers.ModelSerializer):
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     
-    # 1. Account 모델에는 없지만, 입력은 받아야 하는 필드 추가
-    phone_number = serializers.CharField(write_only=True, required=True)
+    # 1. Account 모델에 phone_number가 있다면, 여기서 required=True로 강제만 해줍니다.
+    phone_number = serializers.CharField(required=True)
 
     class Meta:
         model = Account
-        # 2. fields에 phone_number 추가
         fields = ['email', 'password', 'name', 'phone_number'] 
 
     def create(self, validated_data):
-        
+        # 2. 기본 등급(일반사원) 가져오기 로직
         default_level = MemberLevel.objects.first()
         if not default_level: 
             default_level = MemberLevel.objects.create(level_name="일반사원")
 
+        # 3. [핵심 수정] Agent 생성 코드는 싹 지우고, 오직 Account(유저)만 만듭니다.
+        # create_user 함수가 phone_number를 받아서 저장하도록 넘겨줍니다.
         user = Account.objects.create_user(
             email=validated_data['email'],
             password=validated_data['password'],
             name=validated_data['name'],
-            phone_number=validated_data.get('phone_number', ''), # ✨ 전화번호 저장
+            phone_number=validated_data['phone_number'],
             level=default_level
         )
-        
+
+
         return user
 
 

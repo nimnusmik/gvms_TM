@@ -6,10 +6,11 @@ export const TEAMS = [
   ];
   
   export const AGENT_STATUS_OPTIONS = [
-    { value: 'ONLINE', label: '🟢 업무 가능 (ONLINE)' },
+    { value: 'ONLINE', label: '🟢 온라인 (ONLINE)' },
     { value: 'OFFLINE', label: '⚫ 오프라인 (OFFLINE)' },
     { value: 'BUSY', label: '🔴 통화 중 (BUSY)' },
     { value: 'BREAK', label: '🟡 휴식 중 (BREAK)' },
+    { value: 'RESIGNED', label: '🟠 퇴사 (RESIGN)' }
   ];
 
 export enum AgentRole {
@@ -23,10 +24,11 @@ export enum AgentRole {
     ONLINE = 'ONLINE',
     BREAK = 'BREAK',
     BUSY = 'BUSY',
+    RESIGNED = 'RESIGNED',
   }
   
   export interface Agent {
-    agent_id: string;
+    agent_id: number;
     name: string;
 
     email: string;

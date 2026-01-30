@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 
+from django.db import transaction
 from .models import Agent, AgentStatus
 from .serializers import AgentAdminSerializer, AccountSimpleSerializer, AgentSerializer
 
@@ -66,17 +67,64 @@ class AgentViewSet(viewsets.ModelViewSet):
                 {"detail": "상담원 프로필이 없습니다. 관리자에게 문의하세요."}, 
                 status=status.HTTP_404_NOT_FOUND
             )
+    # ----------------------------------------------------------------
+    # 🌟 기능 3: 안전한 삭제 (Hard Delete)
+    # DELETE /api/v1/agents/{id}/
+    # ----------------------------------------------------------------
     def destroy(self, request, *args, **kwargs):
         agent = self.get_object()
         
-        # TODO: 나중에 'Call' 모델이 생기면 주석 해제하세요!
-        # if agent.calls.exists():
-        #     return Response(
-        #         {"message": "통화 기록이 있는 상담원은 삭제할 수 없습니다. 대신 '퇴사' 상태로 변경하세요."}, 
-        #         status=status.HTTP_400_BAD_REQUEST
-        #     )
+        # 1. 안전장치: 배정된 고객이 한 명이라도 있으면 삭제 금지 🛡️
+        # (Customer 모델의 related_name이 기본값인 'customer_set'이라고 가정)
+        if agent.customer_set.exists():
+             return Response(
+                 {"error": "배정된 고객이나 상담 이력이 있는 직원은 삭제할 수 없습니다. 대신 '퇴사' 처리를 이용해주세요."}, 
+                 status=status.HTTP_400_BAD_REQUEST
+             )
+
+        # 2. 진짜 삭제 (아무 기록도 없는 경우에만)
+        # 연결된 User 계정도 같이 지울지, 남길지는 정책에 따라 결정 (여기선 같이 삭제)
+        user = agent.user
+        
+        with transaction.atomic():
+            super().destroy(request, *args, **kwargs) # Agent 삭제
+            user.delete() # 연결된 계정(User)도 삭제 (깔끔하게)
+
+        return Response({"message": "상담원과 계정이 완전히 삭제되었습니다."})
+
+
+    # ----------------------------------------------------------------
+    # 🌟 기능 4: 퇴사 처리 (Soft Delete)
+    # POST /api/v1/agents/{id}/resign/
+    # ----------------------------------------------------------------
+    @action(detail=True, methods=['post'])
+    def resign(self, request, pk=None):
+        agent = self.get_object()
+
+        # 이미 퇴사자인지 확인
+        if agent.status == 'RESIGNED':
+            return Response({"message": "이미 퇴사 처리된 상담원입니다."}, status=status.HTTP_200_OK)
+
+        with transaction.atomic():
+            # 1. 상담원 상태 변경
+            agent.status = 'RESIGNED'
+            agent.save()
+
+            # 2. 로그인 차단 (User 테이블의 is_active를 False로)
+            user = agent.user
+            user.is_active = False 
+            user.save()
             
-        return super().destroy(request, *args, **kwargs)
+            # 3. (선택사항) 이 사람이 가지고 있던 '미완료' 고객들은 어떻게 할까?
+            # 옵션 A: 그냥 둔다. (나중에 관리자가 '일괄 배정'으로 딴 사람 줌) -> 추천 👍
+            # 옵션 B: 자동으로 배정 취소(Null)로 만든다.
+            
+            # customer_count = agent.customer_set.filter(status='NEW').update(assigned_agent=None)
+
+        return Response({
+            "message": f"{agent.name} 님의 퇴사 처리가 완료되었습니다. (로그인 차단됨)",
+            "status": agent.status
+        })
 
     @action(detail=False, methods=['get'], url_path='dashboard_stats')
     def dashboard_stats(self, request):

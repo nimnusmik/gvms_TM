@@ -47,3 +47,27 @@ class Customer(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.status})"
+
+
+class AutoAssignLog(models.Model):
+    """
+    자동 배정이 실행될 때마다 기록을 남기는 장부
+    """
+    STATUS_CHOICES = (
+        ('SUCCESS', '성공'),
+        ('FAILURE', '실패'),
+    )
+
+    executed_at = models.DateTimeField(auto_now_add=True, verbose_name="실행 시간")
+    total_assigned = models.IntegerField(default=0, verbose_name="배정된 수")
+    agent_count = models.IntegerField(default=0, verbose_name="참여 상담원 수")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='SUCCESS')
+    message = models.TextField(blank=True, null=True, verbose_name="결과 메시지/에러로그")
+
+    class Meta:
+        ordering = ['-executed_at']
+        verbose_name = "자동 배정 이력"
+        verbose_name_plural = "자동 배정 이력"
+
+    def __str__(self):
+        return f"[{self.executed_at.date()}] {self.status} ({self.total_assigned}건)"

@@ -6,53 +6,90 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { agentApi } from "../api/agentApi";
-import { TEAMS, AGENT_STATUS_OPTIONS } from "../types/"; // 상수 사용
+import { TEAMS, AGENT_STATUS_OPTIONS } from "../types/";
 import type { Agent } from "../types";
 
 interface Props {
   agent: Agent | null;
   onClose: () => void;
-  onSuccess: () => void; // 성공 시 부모 새로고침
+  onSuccess: () => void;
 }
 
 export function AgentEditDialog({ agent, onClose, onSuccess }: Props) {
   const [formData, setFormData] = useState<Partial<Agent>>({});
 
-  // 모달 열릴 때 데이터 세팅
   useEffect(() => {
     if (agent) {
       setFormData({
         daily_cap: agent.daily_cap,
         status: agent.status,
-        role: agent.role,
-        team: agent.team,
+        team: agent.team, // role은 보통 수정 안 하니 뺌 (필요하면 추가)
       });
     }
   }, [agent]);
 
+  // 1. 정보 수정 핸들러
   const handleSave = async () => {
     if (!agent) return;
     try {
+      // account_id 등 불필요한 필드가 가지 않도록 주의 (백엔드 required=False 처리했으니 안심)
       await agentApi.updateAgent(agent.agent_id, formData);
       toast.success("정보가 수정되었습니다.");
-      onSuccess(); // ✅ 여기서 새로고침 트리거!
+      onSuccess();
+      onClose();
+    } catch (error: any) {
+      // 백엔드 에러 메시지 보여주기
+      const msg = error.response?.data?.account_id ? "이미 등록된 계정입니다." : "수정 실패";
+      toast.error(msg);
+    }
+  };
+
+  // 2. 👋 퇴사 처리 핸들러 (Soft Delete)
+  const handleResign = async () => {
+    if (!agent) return;
+    if (!confirm(`${agent.name} 님을 정말 퇴사 처리 하시겠습니까?\n로그인이 차단됩니다.`)) return;
+
+    try {
+      await agentApi.resignAgent(agent.agent_id);
+      toast.info("퇴사 처리가 완료되었습니다.");
+      onSuccess();
       onClose();
     } catch (error) {
-      toast.error("수정 실패");
+      console.error("퇴사 처리 에러 상세:", error);
+      toast.error("퇴사 처리 중 오류가 발생했습니다.");
+    }
+  };
+
+  // 3. 🗑️ 완전 삭제 핸들러 (Hard Delete)
+  const handleDelete = async () => {
+    if (!agent) return;
+    if (!confirm(`[경고] 정말로 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+
+    try {
+      await agentApi.deleteAgent(agent.agent_id);
+      toast.success("상담원이 영구 삭제되었습니다.");
+      onSuccess();
+      onClose();
+    } catch (error: any) {
+      // 백엔드에서 보낸 400 에러 메시지("기록이 있어서 삭제 불가...")를 여기서 띄움
+      toast.error(error.message || "삭제 실패: 배정된 고객이 있을 수 있습니다.");
     }
   };
 
   return (
     <Dialog open={!!agent} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[425px] bg-white">
+      <DialogContent className="sm:max-w-[500px] bg-white">
         <DialogHeader>
-          <DialogTitle>상담원 정보 수정</DialogTitle>
-          <DialogDescription>{agent?.name} 님의 정보를 변경합니다.</DialogDescription>
+          <DialogTitle>상담원 정보 관리</DialogTitle>
+          <DialogDescription>
+            {agent?.name} ({agent?.email}) 님의 정보를 변경합니다.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
-          {/* 1. 팀 수정 */}
-          <div className="grid grid-cols-4 items-center gap-4">
+          {/* ... (기존 입력 필드들: 팀, 배정량, 상태) ... */}
+           {/* 1. 팀 수정 */}
+           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm font-medium text-gray-600">소속 팀</label>
             <select
               className="col-span-3 h-10 w-full rounded-md border px-3 text-sm bg-white"
@@ -90,9 +127,34 @@ export function AgentEditDialog({ agent, onClose, onSuccess }: Props) {
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>취소</Button>
-          <Button onClick={handleSave}>저장</Button>
+        {/* 👇 Footer 수정: 양쪽 끝으로 정렬 (sm:justify-between) */}
+        <DialogFooter className="sm:justify-between sm:space-x-0">
+          
+          {/* 왼쪽: 위험한 작업들 */}
+          <div className="flex gap-2">
+            <Button 
+              type="button" 
+              variant="destructive" // 빨간색 버튼
+              onClick={handleDelete}
+            >
+              삭제
+            </Button>
+            <Button 
+              type="button" 
+              variant="secondary" // 회색 버튼
+              onClick={handleResign}
+              disabled={agent?.status === 'RESIGNED'} // 이미 퇴사자면 비활성화
+            >
+              {agent?.status === 'RESIGNED' ? '퇴사 완료' : '퇴사 처리'}
+            </Button>
+          </div>
+
+          {/* 오른쪽: 저장/취소 */}
+          <div className="flex gap-2 mt-4 sm:mt-0">
+            <Button variant="outline" onClick={onClose}>취소</Button>
+            <Button onClick={handleSave}>저장</Button>
+          </div>
+          
         </DialogFooter>
       </DialogContent>
     </Dialog>

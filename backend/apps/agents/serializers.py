@@ -6,7 +6,7 @@ User = get_user_model()
 
 # 1. 관리자용: 상담원 생성/수정 (모든 권한)
 class AgentAdminSerializer(serializers.ModelSerializer):
-    account_id = serializers.IntegerField(write_only=True)
+    account_id = serializers.IntegerField(write_only=True, required=False)
     
     # 프론트에 'name'과 'email'을 보여주기 위해 User에서 가져옵니다.
     name = serializers.CharField(source='user.name', read_only=True)
@@ -23,7 +23,9 @@ class AgentAdminSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         account_id = validated_data.pop('account_id')
-
+        if account_id is None:
+            raise serializers.ValidationError({"account_id": "직원 계정을 선택해야 합니다."})
+            
         try:
             user = User.objects.get(pk=account_id)
         except User.DoesNotExist:

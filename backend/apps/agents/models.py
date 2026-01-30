@@ -4,7 +4,7 @@ import string
 from django.db import models
 from django.conf import settings
 
-# 1. Enum 정의 (콤마 실수 수정됨)
+# 1. Enum 정의  
 class AgentRole(models.TextChoices):
     ADMIN = 'ADMIN', '관리자'
     MANAGER = 'MANAGER', '매니저'
@@ -15,6 +15,7 @@ class AgentStatus(models.TextChoices):
     ONLINE = 'ONLINE', '온라인'
     BREAK = 'BREAK', '휴식중'
     BUSY = 'BUSY', '통화중'
+    RESIGNED = 'RESIGNED', '퇴사'
 
 class Team(models.TextChoices):
     BATTERY = 'BATTERY', '배터리'
