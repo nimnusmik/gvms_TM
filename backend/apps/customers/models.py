@@ -9,7 +9,6 @@ class Customer(models.Model):
         SOLAR = 'SOLAR', '태양광'
         MACHINE = 'MACHINE', '산업기계'
 
-
     # 상담 상태 정의 (Enum 역할)
     class Status(models.TextChoices):
         NEW = 'NEW', '접수(신규)'          # 아직 아무도 전화 안 함
@@ -55,6 +54,7 @@ class Customer(models.Model):
     memo = models.TextField(blank=True, default="", verbose_name="관리자 메모")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="DB 생성일")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="마지막 수정일")
+    assigned_at = models.DateTimeField(null=True, blank=True, verbose_name="배정일시")
 
     class Meta:
         db_table = 'tm_customers'

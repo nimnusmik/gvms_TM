@@ -3,12 +3,18 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import ValidationError
+
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError 
 
 from django.db import transaction
 from .models import Agent, AgentStatus
 from .serializers import AgentAdminSerializer, AccountSimpleSerializer, AgentSerializer
 from django.db.models import Count
+
+from apps.customers.services import run_auto_assign_logic
+
 
 User = get_user_model()
 
@@ -187,3 +193,47 @@ class AgentViewSet(viewsets.ModelViewSet):
         }
         
         return Response(data)
+
+
+    def perform_create(self, serializer):
+        try:
+            # 1. 상담원 저장 시도
+            agent = serializer.save()
+            
+            # 2. [시나리오 A] 저장 성공 시 자동 배정 로직 실행
+            if agent.is_auto_assign:
+                from apps.customers.services import run_auto_assign_logic
+                run_auto_assign_logic(agent)
+                
+        except IntegrityError:
+            # 🚨 이미 존재하는 계정일 경우 발생하는 DB 에러를 잡아서
+            # 프론트엔드에게 "400 Bad Request"로 친절하게 알려줍니다.
+            raise ValidationError({"detail": "이미 상담원으로 등록된 계정입니다. (중복 등록 불가)"})
+
+    def perform_update(self, serializer):
+        # 수정 시에도(예: 팀 변경, Cap 증가 등) 배정 로직을 돌릴지 결정
+        agent = serializer.save()
+        
+        # 예: 배정 기능이 꺼져있다가 켜진 경우 즉시 배정
+        if agent.is_auto_assign:
+            run_auto_assign_logic(agent)
+
+    # POST /api/v1/agents/run_daily_assign/
+    @action(detail=False, methods=['post'], url_path='run-daily-assign')
+    def run_daily_assign(self, request):
+        # 1. 대상 상담원 선정 (퇴사자 제외, 자동배정 켜진 사람)
+        active_agents = Agent.objects.exclude(status='RESIGNED').filter(is_auto_assign=True)
+        
+        total_assigned = 0
+        agent_count = 0
+        
+        # 2. 한 명씩 순회하며 리필
+        for agent in active_agents:
+            count = run_auto_assign_logic(agent)
+            if count > 0:
+                total_assigned += count
+                agent_count += 1
+                
+        return Response({
+            "message": f"총 {len(active_agents)}명 중 {agent_count}명에게 {total_assigned}건의 DB가 리필되었습니다."
+        })

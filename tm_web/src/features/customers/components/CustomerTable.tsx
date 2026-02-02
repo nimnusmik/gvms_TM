@@ -1,7 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { TeamBadge } from "@/components/common/TeamBadge";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Customer } from "../types";
+import { formatPhoneNumber } from "@/lib/formatter"; 
 
 interface CustomerTableProps {
   customers: Customer[];
@@ -43,6 +45,9 @@ export function CustomerTable({
               이름
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              전화번호
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               관심분야
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -59,13 +64,13 @@ export function CustomerTable({
         <tbody className="bg-white divide-y divide-gray-200">
           {isLoading ? (
             <tr>
-              <td colSpan={5} className="text-center py-20 text-gray-400">
+              <td colSpan={7} className="text-center py-20 text-gray-400">
                 로딩 중...
               </td>
             </tr>
           ) : customers.length === 0 ? (
             <tr>
-              <td colSpan={5} className="text-center py-20 text-gray-400">
+              <td colSpan={7} className="text-center py-20 text-gray-400">
                 데이터가 없습니다.
               </td>
             </tr>
@@ -82,23 +87,18 @@ export function CustomerTable({
                 </td>
 
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  {customer.name ? (
-                    <span className="text-gray-900 font-medium">{customer.name}</span>
-                  ) : (
-                    <span className="text-gray-400 bg-gray-100 px-2 py-1 rounded-md text-xs">
-                      미배정
-                    </span>
-                  )}
+                  <span className="text-gray-900 font-medium">{customer.name}</span>
+                </td>
+
+                {/* 👇 2. 전화번호 포맷팅 적용 */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <span className="text-gray-900 font-medium">
+                    {formatPhoneNumber(customer.phone)}
+                  </span>
                 </td>
 
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  {customer.team ? (
-                    <span className="text-gray-900 font-medium">{customer.team}</span>
-                  ) : (
-                    <span className="text-gray-400 bg-gray-100 px-2 py-1 rounded-md text-xs">
-                      미배정
-                    </span>
-                  )}
+                  <TeamBadge team={customer.team} />
                 </td>
 
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -117,12 +117,17 @@ export function CustomerTable({
                 </td>
 
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  {customer.agent_name ? (
-                    <span className="text-gray-900 font-medium">{customer.agent_name}</span>
+                  {customer.assigned_agent ? (
+                    <span className="text-gray-900 font-medium">
+                      {customer.agent_name}
+                    </span>
                   ) : (
-                    <span className="text-gray-400 bg-gray-100 px-2 py-1 rounded-md text-xs">미배정</span>
+                    <span className="text-gray-400 bg-gray-100 px-2 py-1 rounded-md text-xs">
+                      미배정
+                    </span>
                   )}
                 </td>
+                
                 <td className="px-6 py-4 whitespace-nowrap text-gray-500 text-sm">
                   {new Date(customer.created_at).toLocaleDateString()}
                 </td>
@@ -132,8 +137,10 @@ export function CustomerTable({
         </tbody>
       </table>
 
+      {/* 페이지네이션 영역 유지... */}
       <div className="bg-white px-4 py-3 flex items-center justify-between border-t sm:px-6">
-        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+        {/* ... */}
+         <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
           <div>
             <p className="text-sm text-gray-700">
               현재 <span className="font-medium">{page}</span> /{" "}
