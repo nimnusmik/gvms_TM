@@ -47,7 +47,7 @@ class Agent(models.Model):
         max_length=20, 
         null=True, 
         blank=True, 
-        verbose_name="배정 번호"
+        verbose_name="직통 번호"
     )
 
     # 업무 설정

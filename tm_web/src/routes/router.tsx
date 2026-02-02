@@ -6,6 +6,7 @@ import DashboardOverviewPage from '@/features/dashboard/pages/DashboardOverviewP
 import AgentManagementPage from '@/features/agents/pages/AgentManagementPage';
 import CustomerManagementPage from '@/features/customers/pages/CustomerManagementPage';
 import ProtectedRoute from '@/features/auth/components/ProtectedRoute'; 
+import NoticePage from '@/features/notices/pages/NoticePage';
 
 export const router = createBrowserRouter([
   // 1. 누구나 접속 가능한 페이지
@@ -45,6 +46,10 @@ export const router = createBrowserRouter([
       {
         path: 'customers', // /dashboard/customer 접속 시
         element: <CustomerManagementPage />,
+      },
+      {
+        path: 'notices', //  /dashboard/notices 접속 시
+        element: <NoticePage />,
       },
     ],
   },
