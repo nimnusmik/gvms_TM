@@ -1,56 +1,65 @@
 # apps/customers/services.py
-import traceback
+
 from django.db import transaction
 from django.utils import timezone
+from .models import Customer
 from apps.agents.models import Agent
-from .models import Customer, AutoAssignLog # 👈 모델 import
 
-def distribute_customers(limit=50):
-    # 1. 주말 체크 (로그 안 남기고 조용히 종료)
-    if timezone.now().weekday() >= 5:
-        return "주말 스킵"
+def run_auto_assign_logic(agent: Agent) -> int:
+    """
+    [핵심 로직] 특정 상담원 1명에게 Daily Cap만큼 고객을 리필(Refill)해주는 함수
+    Returns: 배정된 고객 수
+    """
+    # 1. 배정 대상 검증 (기본 자격 요건)
+    if not agent.is_auto_assign:
+        return 0
+    if agent.status == 'RESIGNED':
+        return 0
 
-    log = AutoAssignLog.objects.create(status='FAILURE') # 일단 실패 상태로 기록 생성
+    if agent.daily_cap <= 0:
+        return 0
 
-    try:
-        # 2. 상담원 & 고객 찾기
-        agents = list(Agent.objects.exclude(status='OFFLINE'))
-        if not agents:
-            raise Exception("근무 중인 상담원 없음")
+    assigned_count = 0
 
-        customers = list(Customer.objects.filter(
-            assigned_agent__isnull=True, 
-            status=Customer.Status.NEW
-        ).order_by('created_at')[:limit])
+    # 2. 트랜잭션 시작 (동시성 제어의 핵심)
+    with transaction.atomic():
+        # [Step 1] 현재 보유량 체크 (완료된 건 제외, 진행 중인 것만)
+        current_holding = Customer.objects.filter(
+            assigned_agent=agent,
+            status='ASSIGNED'
+        ).count()
+
+        # [Step 2] 필요한 개수 계산
+        needed_count = agent.daily_cap - current_holding
+
+        if needed_count <= 0:
+            return 0 # 이미 꽉 찼음 -> 배정 안 함
+
+        # [Step 3] 줄 수 있는 고객 찾기 (Locking 🔒)
+        # select_for_update(): 내가 가져가는 동안 남이 못 건드리게 잠금
+        candidates = Customer.objects.select_for_update(skip_locked=True).filter(
+            assigned_agent__isnull=True,  # 담당자 없음 (미배정)
+            status='NEW',                 # 신규 상태
+            team=agent.team               # 상담원과 같은 팀 (관심사 일치)
+        ).order_by('created_at')[:needed_count] # 오래된 순으로, 필요한 만큼만 자름
+
+        # 쿼리셋은 리스트로 변환해야 슬라이싱 후 업데이트 가능
+        candidate_ids = [c.id for c in candidates]
         
-        if not customers:
-            raise Exception("배정할 신규 DB 없음")
+        if not candidate_ids:
+            return 0 # 줄 수 있는 DB가 하나도 없음
 
-        # 3. 배정 실행 (Atomic)
-        with transaction.atomic():
-            updated_list = []
-            agent_count = len(agents)
-            
-            for i, customer in enumerate(customers):
-                target_agent = agents[i % agent_count]
-                customer.assigned_agent = target_agent
-                customer.status = Customer.Status.ASSIGNED
-                updated_list.append(customer)
-                
-            Customer.objects.bulk_update(updated_list, ['assigned_agent', 'status'])
-            
-            # 4. 성공 시 로그 업데이트 📝
-            log.status = 'SUCCESS'
-            log.total_assigned = len(updated_list)
-            log.agent_count = agent_count
-            log.message = f"상담원 {agent_count}명에게 {len(updated_list)}건 균등 배분 완료"
-            log.save()
-            
-            return log.message
+        # [Step 4] 업데이트 실행 (Bulk Update)
+        # 루프보다 한방에 업데이트하는 게 훨씬 빠름
+        updated_rows = Customer.objects.filter(id__in=candidate_ids).update(
+            assigned_agent=agent,
+            status='ASSIGNED',
+            assigned_at=timezone.now()
+        )
+        assigned_count = updated_rows
 
-    except Exception as e:
-        # 5. 실패 시 에러 내용 기록 📝
-        log.message = str(e)
-        # log.message = traceback.format_exc() # 상세 에러 보고 싶으면 이거 주석 해제
-        log.save()
-        return f"오류 발생: {str(e)}"
+    # 로그 혹은 결과 리턴
+    if assigned_count > 0:
+        print(f"✅ [AutoAssign] {agent.user.name}에게 {assigned_count}건 배정 완료 (보유: {current_holding} -> {current_holding + assigned_count})")
+    
+    return assigned_count

@@ -46,6 +46,9 @@ export function CustomerTable({
               이름
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              전화번호
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               관심분야
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -62,15 +65,15 @@ export function CustomerTable({
         <tbody className="bg-white divide-y divide-gray-200">
           {isLoading ? (
             <tr>
-              {/* 👇 컬럼 개수에 맞춰 colSpan을 6으로 수정 (체크박스 포함) */}
-              <td colSpan={6} className="text-center py-20 text-gray-400">
+              {/* 👇 컬럼 개수에 맞춰 colSpan을 7으로 수정 (체크박스 포함) */}
+              <td colSpan={7} className="text-center py-20 text-gray-400">
                 로딩 중...
               </td>
             </tr>
           ) : customers.length === 0 ? (
             <tr>
-              {/* 👇 여기도 6으로 수정 */}
-              <td colSpan={6} className="text-center py-20 text-gray-400">
+              {/* 👇 여기도 7으로 수정 */}
+              <td colSpan={7} className="text-center py-20 text-gray-400">
                 데이터가 없습니다.
               </td>
             </tr>
@@ -88,6 +91,10 @@ export function CustomerTable({
 
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                   <span className="text-gray-900 font-medium">{customer.name}</span>
+                </td>
+
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <span className="text-gray-900 font-medium">{customer.phone}</span>
                 </td>
 
                 {/* ✨ [수정] TeamBadge 사용법 수정 */}

@@ -85,35 +85,28 @@ class CustomerUploadView(APIView):
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.select_related('assigned_agent').all().order_by('-created_at')
     serializer_class = CustomerSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     
+    # ✅ 필터 설정 (이것만 있으면 됩니다!)
     filter_backends = [
-        DjangoFilterBackend, # ?status=NEW 처리는 얘가 함
-        filters.SearchFilter, # ?search=홍길동 처리는 얘가 함
-        filters.OrderingFilter # 정렬 기능
+        DjangoFilterBackend,   # 정확한 값 일치 (status='NEW')
+        filters.SearchFilter,  # 검색어 포함 (search='홍길동')
+        filters.OrderingFilter # 정렬 (ordering='-created_at')
     ]
     
+    # 1. 정확히 일치해야 하는 필드들
+    filterset_fields = ['status', 'team', 'assigned_agent'] 
+    
+    # 2. 검색어가 포함되어야 하는 필드들
+    search_fields = ['name', 'phone', 'memo', 'region', 'team'] 
+    
+    # 3. 정렬 가능 필드
+    ordering_fields = ['created_at', 'updated_at']
+    ordering = ['-created_at']
 
+    # 👇 [수정] 수동 로직 다 지우고, 딱 이것만 남기세요!
     def get_queryset(self):
-        # 1. 기본: 최신순 조회
-        queryset = Customer.objects.all().order_by('-created_at')
-        
-        # 2. URL 파라미터 가져오기
-        status_param = self.request.query_params.get('status')
-        agent_param = self.request.query_params.get('assigned_agent')
-        
-        # 3. 디버깅용 로그 (터미널에서 확인 가능)
-        print(f"👉 [DEBUG] 필터 요청: status={status_param}, agent={agent_param}")
-
-        # 4. 상태 필터 적용
-        if status_param and status_param != 'ALL':
-            queryset = queryset.filter(status=status_param)
-            
-        # 5. 담당자 필터 적용
-        if agent_param and agent_param != 'ALL':
-            queryset = queryset.filter(assigned_agent_id=agent_param)
-
-        return queryset
+        # super()를 호출해야 위에서 설정한 select_related 최적화가 유지됩니다.
+        return super().get_queryset()
     
     # ----------------------------------------------------------------
     # 🌟 기능: 고객 대량 배정 (Bulk Assign)
