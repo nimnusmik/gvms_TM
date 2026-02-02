@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { agentApi } from '@/features/agents/api/agentApi';
 import type { Agent } from '@/features/agents/types';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"; // Shadcn UI 사용 시
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
+// 👇 1. formatter import 추가
+import { formatPhoneNumber } from "@/lib/formatter";
 
 interface AssignAgentModalProps {
   isOpen: boolean;
@@ -22,13 +24,11 @@ export default function AssignAgentModal({
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
 
-  // 모달이 열릴 때 상담원 목록을 새로 가져옵니다.
   useEffect(() => {
     if (isOpen) {
       setIsFetching(true);
       agentApi.getAgents()
         .then((data) => {
-            console.log("👉 상담원 목록 로드 성공:", data); // 디버깅용 로그
             setAgents(data);
         })
         .catch((err) => {
@@ -46,9 +46,9 @@ export default function AssignAgentModal({
     try {
       await onConfirm(selectedAgentId);
       onClose();
-      setSelectedAgentId(""); // 선택 초기화
+      setSelectedAgentId("");
     } catch (error) {
-      // 에러 처리는 부모 컴포넌트나 API에서 함
+      // 에러 처리
     } finally {
       setIsLoading(false);
     }
@@ -67,7 +67,6 @@ export default function AssignAgentModal({
             누구에게 배정하시겠습니까?
           </p>
 
-          {/* 👇 여기가 핵심! 드롭다운 */}
           <select 
             className="w-full p-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             value={selectedAgentId}
@@ -79,16 +78,17 @@ export default function AssignAgentModal({
             </option>
             
             {agents.map((agent: any) => (
-              // ⚠️ 중요: agent.id가 없으면 agent.agent_id를 사용 (백엔드 설정에 따라 다름)
               <option key={agent.id || agent.agent_id} value={agent.id || agent.agent_id}>
-                {/* 이름이 없으면 '이름 없음' 표시 */}
-                {agent.name || agent.user?.name || "이름 없음"} 
+                {agent.name || agent.user?.name || "이름 없음"}
+                
+                {agent.assigned_phone ? ` / ${formatPhoneNumber(agent.assigned_phone)}` : ""}
+                
+                {/* 상태 표시 */}
                 {agent.status ? ` (${agent.status})` : ""}
               </option>
             ))}
           </select>
           
-          {/* 목록이 비어있을 때 안내 문구 */}
           {!isFetching && agents.length === 0 && (
             <p className="text-xs text-red-500 mt-1">
               * 배정 가능한 상담원이 없습니다.

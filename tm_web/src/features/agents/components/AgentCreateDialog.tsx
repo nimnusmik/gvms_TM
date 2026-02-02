@@ -18,13 +18,14 @@ interface Props {
 export function AgentCreateDialog({ isOpen, onClose, onSuccess }: Props) {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState<any | null>(null);
-  const [config, setConfig] = useState({ daily_cap: 50, team: 'BATTERY' });
+  const [config, setConfig] = useState({ daily_cap: 50, team: 'BATTERY', assigned_phone: '' });
 
+  
   // 모달 열릴 때 후보자 목록 로드
   useEffect(() => {
     if (isOpen) {
       setSelectedCandidate(null);
-      setConfig({ daily_cap: 50, team: 'BATTERY' });
+      setConfig({ daily_cap: 50, team: 'BATTERY', assigned_phone: '' });
       agentApi.getCandidates()
         .then(setCandidates)
         .catch(() => toast.error("후보자 목록 로딩 실패"));
@@ -37,7 +38,8 @@ export function AgentCreateDialog({ isOpen, onClose, onSuccess }: Props) {
       await agentApi.createAgent({
         account_id: selectedCandidate.id,
         daily_cap: config.daily_cap,
-        team: config.team
+        team: config.team,
+        assigned_phone: config.assigned_phone
       });
       toast.success("상담원이 등록되었습니다.");
       onSuccess();
@@ -108,6 +110,17 @@ export function AgentCreateDialog({ isOpen, onClose, onSuccess }: Props) {
                   className="col-span-3 bg-white"
                   value={config.daily_cap}
                   onChange={(e) => setConfig({ ...config, daily_cap: Number(e.target.value) })}
+                />
+              </div>
+
+              {/* ✨ [추가] 전화번호 입력 필드 */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right text-sm font-medium text-gray-600">배정 받을 번호</label>
+                <Input
+                  placeholder="예: 010-1234-5678"
+                  className="col-span-3 bg-white"
+                  value={config.assigned_phone}
+                  onChange={(e) => setConfig({ ...config, assigned_phone: e.target.value })}
                 />
               </div>
             </div>

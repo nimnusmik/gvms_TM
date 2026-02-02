@@ -3,8 +3,7 @@ import { Button } from "@/components/ui/button";
 import { TeamBadge } from "@/components/common/TeamBadge";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Customer } from "../types";
-
-
+import { formatPhoneNumber } from "@/lib/formatter"; 
 
 interface CustomerTableProps {
   customers: Customer[];
@@ -65,14 +64,12 @@ export function CustomerTable({
         <tbody className="bg-white divide-y divide-gray-200">
           {isLoading ? (
             <tr>
-              {/* 👇 컬럼 개수에 맞춰 colSpan을 7으로 수정 (체크박스 포함) */}
               <td colSpan={7} className="text-center py-20 text-gray-400">
                 로딩 중...
               </td>
             </tr>
           ) : customers.length === 0 ? (
             <tr>
-              {/* 👇 여기도 7으로 수정 */}
               <td colSpan={7} className="text-center py-20 text-gray-400">
                 데이터가 없습니다.
               </td>
@@ -93,13 +90,14 @@ export function CustomerTable({
                   <span className="text-gray-900 font-medium">{customer.name}</span>
                 </td>
 
+                {/* 👇 2. 전화번호 포맷팅 적용 */}
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <span className="text-gray-900 font-medium">{customer.phone}</span>
+                  <span className="text-gray-900 font-medium">
+                    {formatPhoneNumber(customer.phone)}
+                  </span>
                 </td>
 
-                {/* ✨ [수정] TeamBadge 사용법 수정 */}
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  {/* 이미 TeamBadge 안에서 '미배정' 처리를 하므로 그냥 넣으면 됩니다 */}
                   <TeamBadge team={customer.team} />
                 </td>
 
@@ -139,9 +137,9 @@ export function CustomerTable({
         </tbody>
       </table>
 
-      {/* 페이지네이션 영역 (기존 코드 유지) */}
+      {/* 페이지네이션 영역 유지... */}
       <div className="bg-white px-4 py-3 flex items-center justify-between border-t sm:px-6">
-         {/* ... (생략) ... */}
+        {/* ... */}
          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
           <div>
             <p className="text-sm text-gray-700">
