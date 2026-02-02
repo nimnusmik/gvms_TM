@@ -2,9 +2,14 @@ import { api } from '@/lib/axios';
 import { PaginatedResponse,} from '../../dashboard/types';
 import { Customer, CustomerParams } from '../types';
 
+export const resetCustomerDB = async () => {
+  const response = await api.delete('/customers/reset-db/');
+  return response.data;
+}
+
 export const customerApi = {
 
-    getCustomers: async (params: CustomerParams) => {
+  getCustomers: async (params: CustomerParams) => {
       const { page = 1, status, agentId, search } = params;
       
       // URL 파라미터 생성 (URLSearchParams 사용)
@@ -45,5 +50,12 @@ export const customerApi = {
     // 백엔드가 url_path='bulk-assign' (하이픈)으로 되어있는지 꼭 확인!
     const { data } = await api.post('/customers/bulk-assign/', payload);
     return data;
+  },
+
+  // ✨ 5. [추가] DB 초기화 (이 부분이 빠져있었습니다!)
+  resetDB: async () => {
+    // 백엔드 URL: DELETE /api/v1/customers/reset-db/
+    const response = await api.delete('/customers/reset-db/');
+    return response.data;
   },
 };
