@@ -44,4 +44,5 @@ export enum AgentRole {
     created_at?: string;
     
     team: string | null;
+    assigned_count: number;
   }

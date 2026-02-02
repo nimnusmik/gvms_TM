@@ -1,5 +1,5 @@
 import { api } from '@/lib/axios';
-import type { Candidate} from '../../dashboard/types';
+import type { Candidate, AssignedCustomer} from '../../dashboard/types';
 import type { Agent} from '../../agents/types';
 
 
@@ -7,6 +7,12 @@ export const agentApi = {
   // 1. 상담원 목록 조회
   getAgents: async () => {
     const response = await api.get<Agent[]>('/agents/');
+    return response.data;
+  },
+
+  // 1. 상담원-배정된 고객들 목록 조회
+  getAgentCustomers: async (agentId: number) => {
+    const response = await api.get<AssignedCustomer[]>(`/agents/${agentId}/customers/`);
     return response.data;
   },
 

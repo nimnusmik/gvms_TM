@@ -14,18 +14,19 @@ class AgentAdminSerializer(serializers.ModelSerializer):
     
     # 사번
     code = serializers.CharField(read_only=True)
+
     
     class Meta:
         model = Agent
         fields = '__all__'
         # user 필드는 create에서 우리가 넣어주니 읽기 전용으로 뺍니다.
-        read_only_fields = ['code', 'created_at', 'user'] 
+        read_only_fields = ['code', 'created_at', 'user', 'assigned_count'] 
 
     def create(self, validated_data):
         account_id = validated_data.pop('account_id')
         if account_id is None:
             raise serializers.ValidationError({"account_id": "직원 계정을 선택해야 합니다."})
-            
+
         try:
             user = User.objects.get(pk=account_id)
         except User.DoesNotExist:
@@ -58,7 +59,8 @@ class AgentSerializer(serializers.ModelSerializer):
 
     name = serializers.CharField(source='user.name', read_only=True)
     email = serializers.CharField(source='user.email', read_only=True)
-    
+    assigned_count = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = Agent
         fields = [
@@ -72,6 +74,7 @@ class AgentSerializer(serializers.ModelSerializer):
             'daily_cap', 
             'is_auto_assign', 
             'created_at',
-            'code'
+            'code',
+            'assigned_count',
         ]
-        read_only_fields = ['agent_id', 'created_at', 'code']
+        read_only_fields = ['agent_id', 'created_at', 'code', 'assigned_count']

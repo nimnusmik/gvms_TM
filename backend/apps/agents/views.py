@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from .models import Agent, AgentStatus
 from .serializers import AgentAdminSerializer, AccountSimpleSerializer, AgentSerializer
+from django.db.models import Count
 
 User = get_user_model()
 
@@ -68,33 +69,54 @@ class AgentViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
     # ----------------------------------------------------------------
-    # 🌟 기능 3: 안전한 삭제 (Hard Delete)
+    # 🌟 기능 3: 조회
+    # GET /api/v1/agents/{id}/customers/
+    # ----------------------------------------------------------------
+    @action(detail=True, methods=['get'])
+    def customers(self, request, pk=None):
+        agent = self.get_object()
+        
+        # related_name='customers' 라고 가정 (만약 에러나면 customer_set으로 변경)
+        if hasattr(agent, 'customers'):
+            my_customers = agent.customers.all().order_by('-created_at')
+        else:
+            my_customers = agent.customer_set.all().order_by('-created_at')
+
+        serializer = CustomerSerializer(my_customers, many=True)
+        return Response(serializer.data)
+
+    queryset = Agent.objects.all()
+    serializer_class = AgentSerializer
+
+    def get_queryset(self):
+        return Agent.objects.annotate(
+            assigned_count=Count('customers')
+        ).order_by('-created_at')
+
+    # ----------------------------------------------------------------
+    # 🌟 기능 4: 안전한 삭제 (Hard Delete)
     # DELETE /api/v1/agents/{id}/
     # ----------------------------------------------------------------
     def destroy(self, request, *args, **kwargs):
         agent = self.get_object()
-        
-        # 1. 안전장치: 배정된 고객이 한 명이라도 있으면 삭제 금지 🛡️
-        # (Customer 모델의 related_name이 기본값인 'customer_set'이라고 가정)
-        if agent.customer_set.exists():
-             return Response(
+
+        if agent.customers.exists(): 
+            print(f"🚨 삭제 차단됨! 잔류 고객: {list(agent.customers.values('id', 'name', 'status'))}")
+            return Response(
                  {"error": "배정된 고객이나 상담 이력이 있는 직원은 삭제할 수 없습니다. 대신 '퇴사' 처리를 이용해주세요."}, 
                  status=status.HTTP_400_BAD_REQUEST
              )
 
-        # 2. 진짜 삭제 (아무 기록도 없는 경우에만)
-        # 연결된 User 계정도 같이 지울지, 남길지는 정책에 따라 결정 (여기선 같이 삭제)
         user = agent.user
-        
         with transaction.atomic():
-            super().destroy(request, *args, **kwargs) # Agent 삭제
-            user.delete() # 연결된 계정(User)도 삭제 (깔끔하게)
+            super().destroy(request, *args, **kwargs)
+            user.delete()
 
         return Response({"message": "상담원과 계정이 완전히 삭제되었습니다."})
 
 
     # ----------------------------------------------------------------
-    # 🌟 기능 4: 퇴사 처리 (Soft Delete)
+    # 🌟 기능 5: 퇴사 처리 (Soft Delete)
     # POST /api/v1/agents/{id}/resign/
     # ----------------------------------------------------------------
     @action(detail=True, methods=['post'])
@@ -115,17 +137,29 @@ class AgentViewSet(viewsets.ModelViewSet):
             user.is_active = False 
             user.save()
             
-            # 3. (선택사항) 이 사람이 가지고 있던 '미완료' 고객들은 어떻게 할까?
-            # 옵션 A: 그냥 둔다. (나중에 관리자가 '일괄 배정'으로 딴 사람 줌) -> 추천 👍
-            # 옵션 B: 자동으로 배정 취소(Null)로 만든다.
+            # 3. [핵심] 배정된 고객 회수 (ASSIGNED -> NEW, 담당자 None)
+            # 완료(COMPLETED)된 건은 건드리지 않고, 진행 중인 건만 회수합니다.
+            if hasattr(agent, 'customers'):
+                active_customers = agent.customers.filter(status='ASSIGNED')
+            else:
+                active_customers = agent.customer_set.filter(status='ASSIGNED')
             
-            # customer_count = agent.customer_set.filter(status='NEW').update(assigned_agent=None)
+            # 회수된 고객 수 저장 (메시지용)
+            released_count = active_customers.count()
+            
+            # 일괄 업데이트 (담당자 해제 및 상태 초기화)
+            active_customers.update(assigned_agent=None, status='NEW')
 
         return Response({
-            "message": f"{agent.user.name} 님의 퇴사 처리가 완료되었습니다. (로그인 차단됨)",
-            "status": agent.status
+            "message": f"{agent.user.name} 님의 퇴사 처리가 완료되었습니다. (고객 {released_count}명 배정 취소됨)",
+            "status": agent.status,
+            "released_count": released_count
         })
 
+    # ----------------------------------------------------------------
+    # 🌟 기능 6: 퇴사 처리 (Soft Delete)
+    # POST /api/v1/agents/{id}/resign/
+    # ----------------------------------------------------------------
     @action(detail=False, methods=['get'], url_path='dashboard_stats')
     def dashboard_stats(self, request):
         from apps.customers.models import Customer 

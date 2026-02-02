@@ -17,3 +17,11 @@ export interface PaginatedResponse<T> {
   previous: string | null;
   results: T[];
 }
+
+export interface AssignedCustomer {
+  id: number;
+  name: string;
+  status: string;
+  phone: string;
+  created_at: string;
+}
