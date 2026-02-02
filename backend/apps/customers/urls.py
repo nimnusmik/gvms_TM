@@ -1,11 +1,17 @@
+# apps/customers/urls.py
+
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CustomerViewSet
+from .views import CustomerViewSet, CustomerUploadView
 
 router = DefaultRouter()
-# 여기서 'customers'라고 등록하면 -> /api/v1/customers/ 가 됩니다.
-router.register(r'customers', CustomerViewSet) 
+router.register(r'', CustomerViewSet) 
 
 urlpatterns = [
+    # 1. 커스텀 기능 (업로드)
+    # 최종 URL: /api/v1/customers/upload_excel/
+    path('upload_excel/', CustomerUploadView.as_view(), name='customer-upload'),
+
+    # 2. 기본 CRUD (Router)
     path('', include(router.urls)),
 ]

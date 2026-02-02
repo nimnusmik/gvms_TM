@@ -1,14 +1,24 @@
 from django.contrib import admin
 from .models import Agent
 
-# Register your models here.
 @admin.register(Agent)
 class AgentAdmin(admin.ModelAdmin):
-    list_display = ('name', 'role', 'status', 'daily_cap', 'account_email')
-    search_field = ('name', 'account__email')
-    list_filter = ('role','status')
+    list_display = [
+        'agent_id', 
+        'get_user_name', 
+        'team', 
+        'role', 
+        'status', 
+        'created_at'
+    ]
+    
+    # 성능 최적화 (User 정보 미리 로딩)
+    list_select_related = ['user']
 
-
-    def account_email(self, obj):
-        return obj.account.email
-    account_email.short_description='계정 이메일'
+    # 이름 가져오는 함수 정의
+    def get_user_name(self, obj):
+        return obj.user.name  
+    
+    # 관리자 페이지 컬럼 제목 설정
+    get_user_name.short_description = '상담원 이름'
+    get_user_name.admin_order_field = 'user__name'

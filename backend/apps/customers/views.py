@@ -1,23 +1,86 @@
 import os
+
 import pandas as pd
-from django.conf import settings
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
-from rest_framework import viewsets, status, parsers
-from rest_framework.decorators import action
+from rest_framework import viewsets, status, parsers, filters
+from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import filters
+from rest_framework.decorators import action
+from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone 
 from django.shortcuts import get_object_or_404
+from django.core.files.storage import default_storage 
+from django.core.files.base import ContentFile
+from django.conf import settings
 
-# 모델 & 시리얼라이저
 from .models import Customer
 from .serializers import CustomerSerializer
 from apps.agents.models import Agent
 
-# Celery Task (경로가 다르면 수정 필요, 같은 앱 내 tasks.py라면 .tasks)
-from .tasks import process_excel_upload
+# 1. 엑셀 업로드 전용 뷰 (분리)
+class CustomerUploadView(APIView):
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser]
+
+    def post(self, request):
+        file = request.FILES.get('file')
+        if not file:
+            return Response({"error": "파일이 없습니다."}, status=400)
+
+        try:
+            df = pd.read_excel(file)
+            
+            # NaN(빈값)을 None으로 변환 (올려주신 Celery 로직 반영)
+            df = df.where(pd.notnull(df), None)
+
+            # 필수 컬럼 체크
+            required = ['이름', '전화번호', '관심분야']
+            if not all(col in df.columns for col in required):
+                return Response({"error": f"필수 컬럼 누락: {required}"}, status=400)
+
+            # 팀 매핑
+            team_map = {
+                '배터리': 'BATTERY', '모빌리티': 'MOBILITY',
+                '태양광': 'SOLAR', '산업기계': 'MACHINE', '산업 기계': 'MACHINE'
+            }
+
+            created_count = 0
+            errors = []
+
+            with transaction.atomic():
+                for index, row in df.iterrows():
+                    try:
+                        name = str(row['이름']).strip()
+                        raw_phone = str(row['전화번호']) if row['전화번호'] else ""
+                        phone = raw_phone.replace('-', '').strip()
+                        team_kor = str(row['관심분야']).strip()
+                        
+                        if not phone: continue # 전화번호 없으면 스킵
+
+                        team_code = team_map.get(team_kor)
+                        
+                        # 중복 체크
+                        if Customer.objects.filter(phone=phone).exists():
+                            continue
+                            
+                        Customer.objects.create(
+                            name=name,
+                            phone=phone,
+                            team=team_code,
+                            status='NEW'
+                        )
+                        created_count += 1
+                        
+                    except Exception as e:
+                        errors.append(f"{index+2}행 에러: {str(e)}")
+
+            return Response({
+                "message": f"✅ {created_count}건 업로드 성공!",
+                "errors": errors[:5]
+            }, status=201)
+
+        except Exception as e:
+            return Response({"error": f"파일 처리 중 오류: {str(e)}"}, status=500)
+
 
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.select_related('assigned_agent').all().order_by('-created_at')
@@ -51,28 +114,6 @@ class CustomerViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(assigned_agent_id=agent_param)
 
         return queryset
-    # ----------------------------------------------------------------
-    # 🚀 [핵심 2] Celery 비동기 업로드 (기존 기능 유지)
-    # ----------------------------------------------------------------
-
-    @action(detail=False, methods=['POST'])
-    def upload_excel(self, request):
-        file = request.FILES.get('file')
-        if not file:
-             return Response({"error": "파일이 없습니다."}, status=400)
-
-        # 임시 저장
-        path = default_storage.save(f"temp/{file.name}", ContentFile(file.read()))
-        full_path = os.path.join(settings.MEDIA_ROOT, path)
-
-        # 비동기 작업 시작
-        task = process_excel_upload.delay(full_path)
-
-        return Response({
-            "message": "✅ 대용량 업로드가 시작되었습니다. (잠시 후 새로고침 해주세요)",
-            "task_id": task.id
-        }, status=status.HTTP_202_ACCEPTED)
-
     
     # ----------------------------------------------------------------
     # 🌟 기능: 고객 대량 배정 (Bulk Assign)
@@ -102,6 +143,22 @@ class CustomerViewSet(viewsets.ModelViewSet):
 
         # 5. [응답]
         return Response({
-            "message": f"성공적으로 {updated_count}명의 고객을 {agent.name}님에게 배정했습니다.",
+            "message": f"성공적으로 {updated_count}명의 고객을 {agent.user.name}님에게 배정했습니다.",
             "updated_count": updated_count
+        })
+
+    # URL: DELETE /api/v1/customers/reset_db/
+    @action(detail=False, methods=['delete'], url_path='reset-db')
+    def reset_db(self, request):
+        
+        if not request.user.is_superuser:
+            return Response({"error": "관리자만 가능합니다."}, status=403)
+
+        with transaction.atomic():
+            # count()는 삭제된 개수를 반환합니다.
+            count, _ = Customer.objects.all().delete()
+            
+        return Response({
+            "message": f"♻️ 고객 DB가 초기화되었습니다. (총 {count}명 삭제됨)",
+            "deleted_count": count
         })

@@ -74,7 +74,22 @@ export function AgentTable({ agents, isLoading, onEdit }: AgentTableProps) {
 
                 {/* 5. 배정량 */}
                 <TableCell className="font-medium">
-                  {agent.daily_cap} <span className="text-gray-400 text-xs font-normal">건/일</span>
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <span className={`font-bold ${
+                      (agent.assigned_count || 0) >= agent.daily_cap 
+                        ? "text-red-600" 
+                        : "text-blue-600"
+                    }`}>
+                      {agent.assigned_count || 0}
+                    </span>
+                    
+                    <span className="text-gray-300">/</span>
+                    
+                    {/* 최대 할당량 */}
+                    <span className="text-gray-600">
+                      {agent.daily_cap} 건
+                    </span>
+                  </div>
                 </TableCell>
 
                 {/* 6. 권한 */}

@@ -5,15 +5,17 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 
+from django.db import transaction
 from .models import Agent, AgentStatus
 from .serializers import AgentAdminSerializer, AccountSimpleSerializer, AgentSerializer
+from django.db.models import Count
 
 User = get_user_model()
 
 class AgentViewSet(viewsets.ModelViewSet):
-    # 1. 기본 설정: 모든 상담원 데이터를 최신순으로 가져옴
-    queryset = Agent.objects.all().order_by('-created_at')
-    
+    # 1. 기본 설정: Agent 가져올 때 User 정보도 '미리' 복사해서 가져옴 (빠름!)
+    queryset = Agent.objects.select_related('user').all().order_by('-created_at')    
+
     # 2. 기본 시리얼라이저: 관리자용 (생성/수정 등 모든 필드 포함)
     serializer_class = AgentAdminSerializer
 
@@ -28,18 +30,23 @@ class AgentViewSet(viewsets.ModelViewSet):
     # ----------------------------------------------------------------
     @action(detail=False, methods=['get'])
     def candidates(self, request):
-        # 1. agent_profile이 없는 사람 (기존 조건)
-        # 2. AND is_superuser가 False인 사람 (관리자 제외)
-        # 3. AND 현재 요청을 보낸 나 자신(request.user)도 제외 (선택사항)
-        
+        # 1. Agent 프로필이 없는(isnull=True) 유저만 찾기
+        # 관리자(is_superuser) 제외, 나 자신 제외
         candidates_query = User.objects.filter(
-            agent_profile__isnull=True,  # 상담원 아님
-            is_superuser=False           # 관리자(Superuser) 아님
-        ).exclude(pk=request.user.pk)    # 나 자신 제외 (혹시 관리자가 아니더라도)
+            agent_profile__isnull=True, 
+            is_superuser=False
+        ).exclude(pk=request.user.pk)
         
-        # 이름과 이메일만 간단하게 리턴
-        serializer = AccountSimpleSerializer(candidates_query, many=True)
-        return Response(serializer.data)
+        # 2. 데이터 가공 
+        data = [{
+            "id": user.pk,
+            "email": user.email,
+            "name": user.name,
+            "phone": user.phone_number, # ✨ User 모델에서 바로 가져옴
+            "date_joined": user.created_at
+        } for user in candidates_query]
+
+        return Response(data)
 
     # ----------------------------------------------------------------
     # 🌟 기능 2: "내 정보" 가져오기 (대시보드 접속 시 사용)
@@ -61,18 +68,98 @@ class AgentViewSet(viewsets.ModelViewSet):
                 {"detail": "상담원 프로필이 없습니다. 관리자에게 문의하세요."}, 
                 status=status.HTTP_404_NOT_FOUND
             )
-    def destroy(self, request, *args, **kwargs):
+    # ----------------------------------------------------------------
+    # 🌟 기능 3: 조회
+    # GET /api/v1/agents/{id}/customers/
+    # ----------------------------------------------------------------
+    @action(detail=True, methods=['get'])
+    def customers(self, request, pk=None):
         agent = self.get_object()
         
-        # TODO: 나중에 'Call' 모델이 생기면 주석 해제하세요!
-        # if agent.calls.exists():
-        #     return Response(
-        #         {"message": "통화 기록이 있는 상담원은 삭제할 수 없습니다. 대신 '퇴사' 상태로 변경하세요."}, 
-        #         status=status.HTTP_400_BAD_REQUEST
-        #     )
-            
-        return super().destroy(request, *args, **kwargs)
+        # related_name='customers' 라고 가정 (만약 에러나면 customer_set으로 변경)
+        if hasattr(agent, 'customers'):
+            my_customers = agent.customers.all().order_by('-created_at')
+        else:
+            my_customers = agent.customer_set.all().order_by('-created_at')
 
+        serializer = CustomerSerializer(my_customers, many=True)
+        return Response(serializer.data)
+
+    queryset = Agent.objects.all()
+    serializer_class = AgentSerializer
+
+    def get_queryset(self):
+        return Agent.objects.annotate(
+            assigned_count=Count('customers')
+        ).order_by('-created_at')
+
+    # ----------------------------------------------------------------
+    # 🌟 기능 4: 안전한 삭제 (Hard Delete)
+    # DELETE /api/v1/agents/{id}/
+    # ----------------------------------------------------------------
+    def destroy(self, request, *args, **kwargs):
+        agent = self.get_object()
+
+        if agent.customers.exists(): 
+            print(f"🚨 삭제 차단됨! 잔류 고객: {list(agent.customers.values('id', 'name', 'status'))}")
+            return Response(
+                 {"error": "배정된 고객이나 상담 이력이 있는 직원은 삭제할 수 없습니다. 대신 '퇴사' 처리를 이용해주세요."}, 
+                 status=status.HTTP_400_BAD_REQUEST
+             )
+
+        user = agent.user
+        with transaction.atomic():
+            super().destroy(request, *args, **kwargs)
+            user.delete()
+
+        return Response({"message": "상담원과 계정이 완전히 삭제되었습니다."})
+
+
+    # ----------------------------------------------------------------
+    # 🌟 기능 5: 퇴사 처리 (Soft Delete)
+    # POST /api/v1/agents/{id}/resign/
+    # ----------------------------------------------------------------
+    @action(detail=True, methods=['post'])
+    def resign(self, request, pk=None):
+        agent = self.get_object()
+
+        # 이미 퇴사자인지 확인
+        if agent.status == 'RESIGNED':
+            return Response({"message": "이미 퇴사 처리된 상담원입니다."}, status=status.HTTP_200_OK)
+
+        with transaction.atomic():
+            # 1. 상담원 상태 변경
+            agent.status = 'RESIGNED'
+            agent.save()
+
+            # 2. 로그인 차단 (User 테이블의 is_active를 False로)
+            user = agent.user
+            user.is_active = False 
+            user.save()
+            
+            # 3. [핵심] 배정된 고객 회수 (ASSIGNED -> NEW, 담당자 None)
+            # 완료(COMPLETED)된 건은 건드리지 않고, 진행 중인 건만 회수합니다.
+            if hasattr(agent, 'customers'):
+                active_customers = agent.customers.filter(status='ASSIGNED')
+            else:
+                active_customers = agent.customer_set.filter(status='ASSIGNED')
+            
+            # 회수된 고객 수 저장 (메시지용)
+            released_count = active_customers.count()
+            
+            # 일괄 업데이트 (담당자 해제 및 상태 초기화)
+            active_customers.update(assigned_agent=None, status='NEW')
+
+        return Response({
+            "message": f"{agent.user.name} 님의 퇴사 처리가 완료되었습니다. (고객 {released_count}명 배정 취소됨)",
+            "status": agent.status,
+            "released_count": released_count
+        })
+
+    # ----------------------------------------------------------------
+    # 🌟 기능 6: 퇴사 처리 (Soft Delete)
+    # POST /api/v1/agents/{id}/resign/
+    # ----------------------------------------------------------------
     @action(detail=False, methods=['get'], url_path='dashboard_stats')
     def dashboard_stats(self, request):
         from apps.customers.models import Customer 
