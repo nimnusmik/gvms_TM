@@ -1,19 +1,50 @@
 import { Button } from "@/components/ui/button";
+import { XCircle, UserPlus } from "lucide-react";
 
 interface CustomerBulkActionBarProps {
   selectedCount: number;
   onAssign: () => void;
+  onUnassign: () => void;
 }
 
-export function CustomerBulkActionBar({ selectedCount, onAssign }: CustomerBulkActionBarProps) {
+export function CustomerBulkActionBar({
+  selectedCount,
+  onAssign,
+  onUnassign,
+}: CustomerBulkActionBarProps) {
   return (
-    <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg flex items-center justify-between animate-fade-in-down">
-      <span className="text-blue-800 font-semibold ml-2">
-        <span className="text-xl font-bold">{selectedCount}</span>명 선택됨
-      </span>
-      <Button onClick={onAssign} className="bg-blue-600 hover:bg-blue-700">
-        상담원 배정하기
-      </Button>
+    <div className="flex items-center justify-between bg-blue-50 border border-blue-100 p-4 rounded-lg animate-in slide-in-from-top-2">
+      <div className="flex items-center gap-2">
+        <span className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+          {selectedCount}
+        </span>
+        <span className="text-blue-900 font-medium text-sm">
+          명 선택됨
+        </span>
+      </div>
+
+      <div className="flex gap-2">
+        {/* 👇 [추가] 배정 취소 버튼 */}
+        <Button
+          variant="outline" // 흰색 배경
+          size="sm"
+          onClick={onUnassign}
+          className="border-blue-200 text-blue-700 hover:bg-blue-100 hover:text-blue-800"
+        >
+          <XCircle className="w-4 h-4 mr-2" />
+          배정 취소
+        </Button>
+
+        {/* 기존 배정 버튼 */}
+        <Button 
+          size="sm" 
+          onClick={onAssign}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          <UserPlus className="w-4 h-4 mr-2" />
+          상담원 배정하기
+        </Button>
+      </div>
     </div>
   );
 }

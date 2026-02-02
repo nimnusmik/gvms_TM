@@ -9,7 +9,6 @@ class Customer(models.Model):
         SOLAR = 'SOLAR', '태양광'
         MACHINE = 'MACHINE', '산업기계'
 
-
     # 상담 상태 정의 (Enum 역할)
     class Status(models.TextChoices):
         NEW = 'NEW', '접수(신규)'          # 아직 아무도 전화 안 함

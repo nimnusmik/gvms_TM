@@ -147,6 +147,24 @@ class CustomerViewSet(viewsets.ModelViewSet):
             "updated_count": updated_count
         })
 
+    @action(detail=False, methods=['post'], url_path='bulk-unassign')
+    def bulk_unassign(self, request):
+        ids = request.data.get('ids', [])
+        if not ids:
+            return Response({"error": "선택된 고객이 없습니다."}, status=400)
+
+        with transaction.atomic():
+            # 1. 해당 고객들의 담당자를 None으로, 상태를 다시 'NEW'로 변경
+            updated_count = Customer.objects.filter(id__in=ids).update(
+                assigned_agent=None,
+                status='NEW' # 배정이 취소되었으니 '접수(신규)' 상태로 복구
+            )
+            
+        return Response({
+            "message": f"✅ {updated_count}명의 배정이 취소되었습니다."
+        })
+
+
     # URL: DELETE /api/v1/customers/reset_db/
     @action(detail=False, methods=['delete'], url_path='reset-db')
     def reset_db(self, request):

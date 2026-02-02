@@ -1,7 +1,8 @@
 // src/features/customers/pages/CustomerManagementPage.tsx
+
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { toast } from "sonner";
-import AssignAgentModal from "../components/AssignAgentModal";
+import AssignAgentModal from '../../agents/components/AssignAgentModal';
 import { CustomerToolbar } from "../components/CustomerToolbar";
 import { CustomerTable } from "../components/CustomerTable";
 import { CustomerBulkActionBar } from "../components/CustomerBulkActionBar";
@@ -31,70 +32,92 @@ export default function CustomerManagementPage() {
     reloadFirstPage,
   } = useCustomerList();
 
+  // 페이지나 필터가 바뀌면 선택 초기화
   useEffect(() => {
     setSelectedIds([]);
   }, [page, activeSearch, statusFilter]);
 
-  // ✨ [추가] 엑셀 업로드 핸들러
+  // 1. 엑셀 업로드 핸들러
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // 1. 파일 크기 체크 (10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast.error("파일 크기는 10MB를 넘을 수 없습니다.");
       return;
     }
     
-    // 2. 확인 메시지
     if (!confirm(`'${file.name}' 파일을 업로드하시겠습니까? \n(대량 업로드 시 시간이 걸릴 수 있습니다)`)) {
-      e.target.value = ""; // 취소 시 초기화
+      e.target.value = ""; 
       return;
     }
     
     setIsUploading(true);
     try {
-      // API 호출
       const response = await customerApi.uploadExcel(file);
       toast.success(response.message || "업로드가 완료되었습니다!");
-      
-      // 성공 시 목록 새로고침 (1페이지로 이동)
       reloadFirstPage();
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || "업로드 실패: 파일 형식을 확인해주세요.";
       toast.error(errorMsg);
     } finally {
       setIsUploading(false);
-      // 파일 입력 초기화 (같은 파일 다시 올릴 수 있게)
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
+  // 2. 검색 엔터키 핸들러
   const handleSearchKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       applySearch();
     }
   };
 
+  // 3. 전체 선택 핸들러
   const handleSelectAll = (checked: boolean) => {
     setSelectedIds(checked ? customers.map((c) => c.id) : []);
   };
 
+  // 4. 개별 행 선택 핸들러
   const handleSelectRow = (id: number) => {
     setSelectedIds((prev) => 
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
 
+  // 5. 일괄 배정 핸들러 (모달 확인 누를 때 실행)
   const handleBulkAssign = async (agentId: string) => {
-    await customerApi.bulkAssign({ ids: selectedIds, agent_id: agentId });
-    toast.success(`성공적으로 ${selectedIds.length}명을 배정했습니다.`);
-    setSelectedIds([]);
-    reloadPage();
+    try {
+      await customerApi.bulkAssign({ ids: selectedIds, agent_id: agentId });
+      toast.success(`성공적으로 ${selectedIds.length}명을 배정했습니다.`);
+      setSelectedIds([]);
+      setIsModalOpen(false); // 모달 닫기
+      reloadPage();
+    } catch (error) {
+      toast.error("배정 중 오류가 발생했습니다.");
+    }
+  };
+
+  // 6. ✨ [추가] 일괄 배정 취소 핸들러
+  const handleBulkUnassign = async () => {
+    if (!confirm(`선택한 ${selectedIds.length}명의 담당자 배정을 취소하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      await customerApi.bulkUnassign(selectedIds);
+      toast.success("배정이 취소되었습니다.");
+      
+      setSelectedIds([]); // 선택 해제
+      reloadPage();       // 목록 새로고침
+    } catch (error) {
+      toast.error("배정 취소 중 오류가 발생했습니다.");
+    }
   };
 
   return (
     <div className="p-6 space-y-4">
+      {/* 상단 툴바 (검색, 필터, 업로드, DB초기화) */}
       <CustomerToolbar
         totalCount={customers.length}
         isLoading={isLoading}
@@ -111,14 +134,16 @@ export default function CustomerManagementPage() {
         onReset={resetFilters}
       />
 
-      {/* 일괄 작업 액션 바 */}
+      {/* ✨ 일괄 작업 액션 바 (선택되었을 때만 표시) */}
       {selectedIds.length > 0 && (
         <CustomerBulkActionBar
           selectedCount={selectedIds.length}
           onAssign={() => setIsModalOpen(true)}
+          onUnassign={handleBulkUnassign} // 👈 여기가 핵심! 연결되었습니다.
         />
       )}
 
+      {/* 메인 테이블 */}
       <CustomerTable
         customers={customers}
         isLoading={isLoading}
@@ -131,6 +156,7 @@ export default function CustomerManagementPage() {
         onNextPage={() => setPage(Math.min(totalPages, page + 1))}
       />
 
+      {/* 배정 모달 */}
       <AssignAgentModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

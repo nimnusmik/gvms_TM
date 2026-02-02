@@ -52,6 +52,10 @@ export const customerApi = {
     return data;
   },
 
+  bulkUnassign: async (ids: number[]) => {
+    const { data } = await api.post('/customers/bulk-unassign/', { ids });
+    return data;
+  },
   // ✨ 5. [추가] DB 초기화 (이 부분이 빠져있었습니다!)
   resetDB: async () => {
     // 백엔드 URL: DELETE /api/v1/customers/reset-db/
