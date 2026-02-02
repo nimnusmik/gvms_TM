@@ -27,7 +27,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='agent',
             name='assigned_phone',
-            field=models.CharField(blank=True, max_length=20, null=True, verbose_name='배정 번호'),
+            field=models.CharField(blank=True, max_length=20, null=True, verbose_name='직통 번호'),
         ),
         migrations.AlterField(
             model_name='agent',

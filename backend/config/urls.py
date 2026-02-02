@@ -7,10 +7,13 @@ urlpatterns = [
     # 1. 인증
     path('api/v1/auth/', include('apps.accounts.urls')), 
     
-    # 2. 상담원 (URL을 여기서 명시)
+    # 2. 상담원 
     path('api/v1/agents/', include('apps.agents.urls')), 
 
-    # 3. 고객 (URL을 여기서 명시) 👈 이렇게 바꿉니다!
+    # 3. 고객 
     path('api/v1/customers/', include('apps.customers.urls')),  
+
+    # 4. 공지사항 
+    path('api/v1/notices/', include('apps.notices.urls')),  
 ]
 
