@@ -20,6 +20,9 @@ export interface Customer {
     agent_name?: string;     
     created_at: string;
     memo?: string;
+
+    team: string | null;          
+    team_display: string | null;  
   }
 
 export interface CustomerParams {

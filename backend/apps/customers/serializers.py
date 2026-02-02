@@ -9,9 +9,11 @@ class CustomerSerializer(serializers.ModelSerializer):
         default=None
     )
 
+    team_display = serializers.CharField(source='get_team_display', read_only=True)
+
     class Meta:
         model = Customer
-        fields = ['id', 'name', 'phone', 'status', 'assigned_agent', 'agent_name', 'created_at']
+        fields = ['id', 'name', 'phone', 'status', 'assigned_agent', 'agent_name', 'created_at', 'team', 'team_display']
         
 # 2. 엑셀 파일 업로드용 (DB 저장용이 아니라 입력 검증용)
 class FileUploadSerializer(serializers.Serializer):

@@ -43,6 +43,9 @@ export function CustomerTable({
               이름
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              관심분야
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               상태
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -81,6 +84,16 @@ export function CustomerTable({
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                   {customer.name ? (
                     <span className="text-gray-900 font-medium">{customer.name}</span>
+                  ) : (
+                    <span className="text-gray-400 bg-gray-100 px-2 py-1 rounded-md text-xs">
+                      미배정
+                    </span>
+                  )}
+                </td>
+
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  {customer.team ? (
+                    <span className="text-gray-900 font-medium">{customer.team}</span>
                   ) : (
                     <span className="text-gray-400 bg-gray-100 px-2 py-1 rounded-md text-xs">
                       미배정

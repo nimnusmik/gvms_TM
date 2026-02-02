@@ -2,6 +2,14 @@ from django.db import models
 from apps.agents.models import Agent # 상담원 모델 import
 
 class Customer(models.Model):
+
+    class Team(models.TextChoices):
+        BATTERY = 'BATTERY', '배터리'
+        MOBILITY = 'MOBILITY', '모빌리티'
+        SOLAR = 'SOLAR', '태양광'
+        MACHINE = 'MACHINE', '산업기계'
+
+
     # 상담 상태 정의 (Enum 역할)
     class Status(models.TextChoices):
         NEW = 'NEW', '접수(신규)'          # 아직 아무도 전화 안 함
@@ -18,6 +26,14 @@ class Customer(models.Model):
     age = models.IntegerField(null=True, blank=True, verbose_name="나이")
     gender = models.CharField(max_length=10, null=True, blank=True, verbose_name="성별")
     region = models.CharField(max_length=255, null=True, blank=True, verbose_name="지역")
+
+    team = models.CharField(
+        max_length=20,
+        choices=Team.choices,
+        null=True,  # 기존 데이터 때문에 일단 null 허용
+        blank=True,
+        verbose_name="관심 분야(팀)"
+    )
 
     # 2. 관리 정보
     status = models.CharField(
@@ -46,7 +62,7 @@ class Customer(models.Model):
         ordering = ['-created_at'] # 최신 DB부터 보여주기
 
     def __str__(self):
-        return f"{self.name} ({self.status})"
+        return f"{self.name} - {self.team} ({self.status})"
 
 
 class AutoAssignLog(models.Model):
