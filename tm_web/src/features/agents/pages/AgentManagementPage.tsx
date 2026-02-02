@@ -60,7 +60,7 @@ export default function AgentManagementPage() {
               현재 활동 중인 상담원 <span className="font-bold text-blue-600">{agents.length}명</span>을 관리합니다.
             </p>
           </div>
-          <Button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
             <UserPlus className="w-4 h-4 mr-2" /> 상담원 신규 등록
           </Button>
         </div>

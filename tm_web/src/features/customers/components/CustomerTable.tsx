@@ -45,10 +45,10 @@ export function CustomerTable({
               이름
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              전화번호
+              관심분야
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              관심분야
+              전화번호
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               상태
@@ -90,6 +90,10 @@ export function CustomerTable({
                   <span className="text-gray-900 font-medium">{customer.name}</span>
                 </td>
 
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <TeamBadge team={customer.team} />
+                </td>
+
                 {/* 👇 2. 전화번호 포맷팅 적용 */}
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                   <span className="text-gray-900 font-medium">
@@ -97,9 +101,6 @@ export function CustomerTable({
                   </span>
                 </td>
 
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <TeamBadge team={customer.team} />
-                </td>
 
                 <td className="px-6 py-4 whitespace-nowrap">
                   <Badge

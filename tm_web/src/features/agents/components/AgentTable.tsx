@@ -21,7 +21,7 @@ export function AgentTable({ agents, isLoading, onEdit }: AgentTableProps) {
           <TableRow>
             <TableHead className="w-[80px]">상태</TableHead>
             <TableHead>상담원 정보</TableHead>
-            <TableHead>배정 번호</TableHead>
+            <TableHead>직통 번호</TableHead>
             <TableHead>소속 팀</TableHead>
             <TableHead>사번</TableHead>
             <TableHead>일일 배정량</TableHead>
@@ -64,7 +64,7 @@ export function AgentTable({ agents, isLoading, onEdit }: AgentTableProps) {
                   </div>
                 </TableCell>
 
-                {/* ✨ 3. [수정됨] 배정 번호 (포맷팅 적용) */}
+                {/* ✨ 3. 직통 번호 (포맷팅 적용) */}
                 <TableCell>
                   {agent.assigned_phone ? (
                     <span className="text-gray-900 font-mono text-sm">
