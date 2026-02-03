@@ -158,18 +158,18 @@ class CustomerViewSet(viewsets.ModelViewSet):
         })
 
 
-    # URL: DELETE /api/v1/customers/reset_db/
-    @action(detail=False, methods=['delete'], url_path='reset-db')
-    def reset_db(self, request):
+    @action(detail=False, methods=['post'], url_path='run-daily-assign')
+    def run_daily_assign(self, request):
+        """
+        [관리자용] 자동 배정 수동 실행 버튼
+        """
+        # 실행자 이름 확보
+        trigger_user = request.user.name if hasattr(request.user, 'name') else request.user.username
         
-        if not request.user.is_superuser:
-            return Response({"error": "관리자만 가능합니다."}, status=403)
+        # Celery Task 비동기 호출 (.delay)
+        task_run_auto_assign.delay(triggered_by=trigger_user)
 
-        with transaction.atomic():
-            # count()는 삭제된 개수를 반환합니다.
-            count, _ = Customer.objects.all().delete()
-            
         return Response({
-            "message": f"♻️ 고객 DB가 초기화되었습니다. (총 {count}명 삭제됨)",
-            "deleted_count": count
-        })
+            'message': '자동 배정 작업이 시작되었습니다.',
+            'info': '결과는 [자동 배정 이력] 메뉴에서 잠시 후 확인 가능합니다.'
+        }, status=202)

@@ -1,5 +1,4 @@
 from django.db import models
-from apps.agents.models import Agent # 상담원 모델 import
 
 class Customer(models.Model):
 
@@ -42,7 +41,7 @@ class Customer(models.Model):
         verbose_name="상담 상태"
     )
     assigned_agent = models.ForeignKey(
-        Agent, 
+        'agents.Agent',
         on_delete=models.SET_NULL, # 상담원이 삭제돼도 고객 DB는 남아야 함 (중요!)
         null=True, 
         blank=True,
@@ -65,25 +64,27 @@ class Customer(models.Model):
         return f"{self.name} - {self.team} ({self.status})"
 
 
-class AutoAssignLog(models.Model):
-    """
-    자동 배정이 실행될 때마다 기록을 남기는 장부
-    """
+
+class AssignmentLog(models.Model):
     STATUS_CHOICES = (
         ('SUCCESS', '성공'),
+        ('PARTIAL_SUCCESS', '부분 성공'),
         ('FAILURE', '실패'),
     )
 
-    executed_at = models.DateTimeField(auto_now_add=True, verbose_name="실행 시간")
-    total_assigned = models.IntegerField(default=0, verbose_name="배정된 수")
-    agent_count = models.IntegerField(default=0, verbose_name="참여 상담원 수")
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='SUCCESS')
-    message = models.TextField(blank=True, null=True, verbose_name="결과 메시지/에러로그")
+    executed_at = models.DateTimeField(auto_now_add=True, verbose_name="실행 일시")
+    triggered_by = models.CharField(max_length=50, default='SYSTEM', verbose_name="실행자")
+    total_assigned = models.IntegerField(default=0, verbose_name="총 배정 건수")
+    agent_count = models.IntegerField(default=0, verbose_name="참여 상담원 수") 
+    result_detail = models.JSONField(default=dict, blank=True, verbose_name="상세 배정 내역")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='SUCCESS', verbose_name="상태")
+    error_message = models.TextField(blank=True, null=True, verbose_name="에러 로그")
 
     class Meta:
         ordering = ['-executed_at']
         verbose_name = "자동 배정 이력"
         verbose_name_plural = "자동 배정 이력"
+        db_table = 'tm_assignment_logs'
 
     def __str__(self):
-        return f"[{self.executed_at.date()}] {self.status} ({self.total_assigned}건)"
+        return f"[{self.executed_at.strftime('%Y-%m-%d %H:%M')}] {self.status} - {self.total_assigned}건"

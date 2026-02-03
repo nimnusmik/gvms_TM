@@ -5,8 +5,7 @@ services:
   tm_db:
     image: postgres:16
     container_name: tm_postgres
-    env_file:
-      - .env
+    env_file: .env
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -28,13 +27,12 @@ services:
   tm_backend:
     build: ./backend
     container_name: tm_backend
-    # 마이그레이션 수행 후 서버 실행
     command: >
       sh -c "python manage.py migrate &&
              python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./backend:/app
-      - tm_media_data:/app/media # 🌟 엑셀 파일 공유용 볼륨
+      - tm_media_data:/app/media
     ports:
       - "8000:8000"
     depends_on:
@@ -42,17 +40,12 @@ services:
         condition: service_healthy
       tm_redis:
         condition: service_started
-    env_file:
-      - .env
-    restart: unless-stopped
+    env_file: .env
     environment:
+      # ⚠️ 도커 내부에서는 'localhost' 대신 서비스명('tm_redis', 'tm_db')을 씁니다.
       - CELERY_BROKER_URL=redis://tm_redis:6379/0
       - CELERY_RESULT_BACKEND=django-db
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_HOST=tm_db
     networks:
       - tm_net
 
@@ -66,29 +59,43 @@ services:
     networks:
       - tm_net
 
-  # 4. 🌟 [필수] Celery Worker (이 부분이 누락되어 있었을 겁니다)
+  # 4. Celery Worker (일꾼)
   tm_celery_worker:
     build: ./backend
     container_name: tm_celery_worker
-    # ⚠️ 주의: 'config' 부분은 본인의 프로젝트 폴더명(settings.py가 있는 곳)으로 확인 후 수정하세요!
-    command: celery -A config worker --loglevel=info 
+    # ⚠️ 'config'는 프로젝트 폴더명에 맞게 수정 필요
+    command: celery -A config worker --loglevel=info
     volumes:
       - ./backend:/app
-      - tm_media_data:/app/media # 🌟 백엔드와 같은 볼륨 공유 필수
-    env_file:
-      - .env
+      - tm_media_data:/app/media
+    env_file: .env
     environment:
       - CELERY_BROKER_URL=redis://tm_redis:6379/0
       - CELERY_RESULT_BACKEND=django-db
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_HOST=tm_db
     depends_on:
       - tm_db
       - tm_redis
-      - tm_backend
+    restart: unless-stopped
+    networks:
+      - tm_net
+
+  # 5. Celery Beat (알람시계 - 스케줄러)
+  tm_celery_beat:
+    build: ./backend
+    container_name: tm_celery_beat
+    # 스케줄러 실행 명령어
+    command: celery -A config beat --loglevel=info
+    volumes:
+      - ./backend:/app
+    env_file: .env
+    environment:
+      - CELERY_BROKER_URL=redis://tm_redis:6379/0
+      - CELERY_RESULT_BACKEND=django-db
+      - POSTGRES_HOST=tm_db
+    depends_on:
+      - tm_db
+      - tm_redis
     restart: unless-stopped
     networks:
       - tm_net
@@ -96,7 +103,7 @@ services:
 volumes:
   tm_postgres_data:
   tm_redis_data:
-  tm_media_data: # 🌟 미디어 볼륨 정의
+  tm_media_data:
 
 networks:
   tm_net:

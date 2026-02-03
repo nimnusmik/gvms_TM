@@ -1,67 +1,81 @@
-import pandas as pd
-import os
+# apps/customers/tasks.py
+
 from celery import shared_task
-from django.db import transaction
-from .models import Customer
+from django.utils import timezone
+import traceback
+
+# 모델 및 로직 import
+from .models import AssignmentLog
+from apps.agents.models import Agent
+from .services import run_auto_assign_logic  # 작성하신 핵심 로직 import
 
 @shared_task
-def process_excel_upload(file_path):
+def task_run_auto_assign(triggered_by='SYSTEM'):
     """
-    Celery가 백그라운드에서 실행하는 함수입니다.
-    views.py에서 넘겨준 파일 경로(file_path)를 받아서 처리합니다.
+    [Celery Task] 모든 상담원을 순회하며 자동 배정 로직 실행 & 로그 저장
     """
+    # 1. 로그 데이터 초기화
+    log_data = {
+        'triggered_by': triggered_by,
+        'status': 'SUCCESS',
+        'total_assigned': 0,
+        'agent_count': 0,
+        'result_detail': {},   # {"김철수": 10, "이영희": 5}
+        'error_message': ''
+    }
+
     try:
-        print(f"🔥 [Celery] 엑셀 처리 시작: {file_path}")
+        # 2. 배정 대상 상담원 조회 (퇴사자 제외, 자동배정 켜진 사람만)
+        # select_related로 user 정보 미리 가져오기 (쿼리 최적화)
+        agents = Agent.objects.select_related('user').filter(
+            status='ACTIVE', 
+            is_auto_assign=True
+        )
         
-        # 1. Pandas로 엑셀 읽기
-        df = pd.read_excel(file_path)
+        log_data['agent_count'] = agents.count()
+
+        if log_data['agent_count'] == 0:
+            log_data['status'] = 'FAILURE'
+            log_data['error_message'] = "자동 배정이 활성화된 상담원이 없습니다."
         
-        # 2. ✨ 사라졌던 로직 복구: NaN -> None 변환
-        df = df.where(pd.notnull(df), None)
+        else:
+            # 3. 상담원 순회하며 배정 실행 (핵심)
+            for agent in agents:
+                try:
+                    # services.py의 핵심 함수 호출!
+                    assigned_count = run_auto_assign_logic(agent)
+                    
+                    if assigned_count > 0:
+                        log_data['total_assigned'] += assigned_count
+                        # 상세 내역 기록 (이름: 개수)
+                        agent_name = agent.user.name if agent.user else f"Agent_{agent.id}"
+                        log_data['result_detail'][agent_name] = assigned_count
 
-        # 3. 필수 컬럼 확인
-        required_cols = ['이름', '전화번호']
-        # (Task에서는 Response를 못 주므로, 에러 발생 시 로그를 남기고 종료하거나 상태를 업데이트해야 함)
-        if not all(col in df.columns for col in required_cols):
-            print(f"❌ [Celery] 필수 컬럼 누락: {required_cols}")
-            return "실패: 필수 컬럼 누락"
+                except Exception as inner_e:
+                    # 한 명 실패해도 멈추지 않고 다음 사람 진행 (로그만 남김)
+                    agent_name = agent.user.name if agent.user else f"Agent_{agent.id}"
+                    log_data['result_detail'][f"{agent_name}_ERROR"] = str(inner_e)
 
-        # 4. 데이터 객체 생성 (반복문)
-        customers_to_create = []
-        for _, row in df.iterrows():
-            # 전화번호 전처리
-            raw_phone = str(row['전화번호']) if row['전화번호'] else ""
-            phone = raw_phone.replace('-', '').strip()
-            
-            # 유효성 검사
-            if not phone: 
-                continue
-
-            customers_to_create.append(Customer(
-                name=row['이름'],
-                phone=phone,
-                age=row.get('나이'),     # None 안전하게 들어감
-                gender=row.get('성별'),
-                region=row.get('지역'),
-                status=Customer.Status.NEW
-            ))
-
-        # 5. DB 저장 (Bulk Create)
-        with transaction.atomic():
-            Customer.objects.bulk_create(
-                customers_to_create, 
-                batch_size=1000,       
-                ignore_conflicts=True 
-            )
-            
-        print(f"✅ [Celery] {len(customers_to_create)}건 업로드 완료!")
-        
-        # 6. (선택사항) 다 쓴 임시 파일 삭제
-        if os.path.exists(file_path):
-            os.remove(file_path)
-            
-        return f"성공: {len(customers_to_create)}건 처리"
+            # 4. 결과 메시지 정리
+            if log_data['total_assigned'] == 0:
+                log_data['result_detail']['info'] = "조건에 맞는 신규 DB가 없거나, 모든 상담원의 할당량이 꽉 찼습니다."
 
     except Exception as e:
-        print(f"❌ [Celery] 에러 발생: {str(e)}")
-        return f"실패: {str(e)}"
+        # 전체 로직 에러 처리
+        log_data['status'] = 'FAILURE'
+        log_data['error_message'] = str(e)
+        log_data['result_detail']['traceback'] = traceback.format_exc()
+        print(f"❌ [Celery Error] Auto Assign Failed: {e}")
+
+    finally:
+        # 5. DB에 이력 저장 (AssignmentLog)
+        AssignmentLog.objects.create(
+            triggered_by=log_data['triggered_by'],
+            status=log_data['status'],
+            total_assigned=log_data['total_assigned'],
+            agent_count=log_data['agent_count'],
+            result_detail=log_data['result_detail'],
+            error_message=log_data['error_message']
+        )
+
+    return f"Auto Assign Finished: {log_data['status']} ({log_data['total_assigned']} assigned)"
