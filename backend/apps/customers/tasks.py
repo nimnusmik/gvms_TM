@@ -28,7 +28,7 @@ def task_run_auto_assign(triggered_by='SYSTEM'):
         # 2. 배정 대상 상담원 조회 (퇴사자 제외, 자동배정 켜진 사람만)
         # select_related로 user 정보 미리 가져오기 (쿼리 최적화)
         agents = Agent.objects.select_related('user').filter(
-            status='ACTIVE', 
+            status='ONLINE',
             is_auto_assign=True
         )
         

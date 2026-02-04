@@ -15,7 +15,7 @@ from django.conf import settings
 
 from .models import Customer
 from .serializers import CustomerSerializer
-from apps.agents.models import Agent
+from .tasks import task_run_auto_assign
 
 # 1. 엑셀 업로드 전용 뷰 (분리)
 class CustomerUploadView(APIView):
@@ -160,6 +160,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='run-daily-assign')
     def run_daily_assign(self, request):
+        from .services import run_auto_assign_logic
         """
         [관리자용] 자동 배정 수동 실행 버튼
         """
