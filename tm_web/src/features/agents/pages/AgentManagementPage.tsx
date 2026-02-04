@@ -11,6 +11,7 @@ import type { Agent } from "../types";
 import { AgentTable } from "../components/AgentTable";
 import { AgentCreateDialog } from "../components/AgentCreateDialog";
 import { AgentEditDialog } from "../components/AgentEditDialog";
+import { DashboardAutoAssignButton } from "@/features/dashboard/components/DashboardAutoAssignButton";
 
 export default function AgentManagementPage() {
   // 1. 데이터 상태
@@ -76,6 +77,11 @@ export default function AgentManagementPage() {
             />
           </div>
           <div className="flex-1"></div>
+          <DashboardAutoAssignButton
+            variant="outline"
+            size="sm"
+            className="border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700"
+          />
           <Button variant="outline" size="sm" onClick={fetchAgents}>
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} /> 목록 새로고침
           </Button>

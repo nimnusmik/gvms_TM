@@ -1,10 +1,18 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, type ButtonProps } from "@/components/ui/button";
 import { Play, Loader2 } from "lucide-react"; // 아이콘
 import { toast } from "sonner";
 import { customerApi } from "@/features/customers/api/customerApi";
 
-export function DashboardAutoAssignButton() {
+type DashboardAutoAssignButtonProps = {
+  className?: string;
+} & Pick<ButtonProps, "variant" | "size">;
+
+export function DashboardAutoAssignButton({
+  variant = "default",
+  size,
+  className,
+}: DashboardAutoAssignButtonProps) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleRunAssign = async () => {
@@ -37,7 +45,13 @@ export function DashboardAutoAssignButton() {
     <Button 
       onClick={handleRunAssign} 
       disabled={isProcessing}
-      className="bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-md transition-all active:scale-95"
+      variant={variant}
+      size={size}
+      className={
+        variant === "default"
+          ? `bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-md transition-all active:scale-95 ${className ?? ""}`
+          : className
+      }
     >
       {isProcessing ? (
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />

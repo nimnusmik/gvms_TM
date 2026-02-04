@@ -8,7 +8,6 @@ import { DashboardHeader } from "../components/DashboardHeader";
 import { DashboardStatGrid } from "../components/DashboardStatGrid";
 import { DashboardCallTrendCard } from "../components/DashboardCallTrendCard";
 import { DashboardNoticeCard } from "../components/DashboardNoticeCard";
-import { DashboardAutoAssignButton } from "../components/DashboardAutoAssignButton"; 
 
 // 훅 및 유틸리티
 import { useDashboardStats } from "../hooks/useDashboardStats";
@@ -23,13 +22,9 @@ export default function DashboardOverviewPage() {
       {/* 🟢 상단 헤더 영역 (Flexbox 레이아웃) */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         
-        {/* 👈 [왼쪽 그룹] 제목 + 자동 배정 버튼 */}
+        {/* 👈 [왼쪽 그룹] 제목 */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-6">
           <DashboardHeader />
-          
-          <div className="sm:mt-1">
-            <DashboardAutoAssignButton />
-          </div>
         </div>
         
         {/* 👉 [오른쪽 그룹] 마지막 업데이트 정보 & 새로고침 버튼 */}
