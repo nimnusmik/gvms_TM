@@ -6,6 +6,8 @@ import { RefreshCcw, Search, UploadCloud, X } from "lucide-react";
 import type { ChangeEvent, KeyboardEvent, RefObject } from "react";
 
 import { CustomerResetDialog } from "./CustomerResetDialog";
+import { TEAMS } from "@/features/agents/types";
+import type { Agent } from "@/features/agents/types";
 
 interface CustomerToolbarProps {
   totalCount: number;
@@ -19,6 +21,11 @@ interface CustomerToolbarProps {
   onSearchKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
   statusFilter: string;
   onStatusChange: (value: string) => void;
+  agentFilter: string;
+  onAgentChange: (value: string) => void;
+  teamFilter: string;
+  onTeamChange: (value: string) => void;
+  agents: Agent[];
   showReset: boolean;
   onReset: () => void;
 }
@@ -35,6 +42,11 @@ export function CustomerToolbar({
   onSearchKeyDown,
   statusFilter,
   onStatusChange,
+  agentFilter,
+  onAgentChange,
+  teamFilter,
+  onTeamChange,
+  agents,
   showReset,
   onReset,
 }: CustomerToolbarProps) {
@@ -99,7 +111,7 @@ export function CustomerToolbar({
         </div>
 
         <select
-          className="h-10 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="customer-filter-select"
           value={statusFilter}
           onChange={(e) => onStatusChange(e.target.value)}
         >
@@ -108,6 +120,32 @@ export function CustomerToolbar({
           <option value="ASSIGNED">배정됨 (ASSIGNED)</option>
           <option value="SUCCESS">성공 (SUCCESS)</option>
           <option value="REJECT">거절 (REJECT)</option>
+        </select>
+
+        <select
+          className="customer-filter-select"
+          value={agentFilter}
+          onChange={(e) => onAgentChange(e.target.value)}
+        >
+          <option value="ALL">담당자 전체</option>
+          {agents.map((agent) => (
+            <option key={agent.agent_id} value={String(agent.agent_id)}>
+              {agent.name} ({agent.code})
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="customer-filter-select"
+          value={teamFilter}
+          onChange={(e) => onTeamChange(e.target.value)}
+        >
+          <option value="ALL">관심분야 전체</option>
+          {TEAMS.map((team) => (
+            <option key={team.value} value={team.value}>
+              {team.label}
+            </option>
+          ))}
         </select>
 
         {showReset && (

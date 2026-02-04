@@ -8,12 +8,15 @@ import { CustomerTable } from "../components/CustomerTable";
 import { CustomerBulkActionBar } from "../components/CustomerBulkActionBar";
 import { useCustomerList } from "../hooks/useCustomerList";
 import { customerApi } from "../api/customerApi";
+import { agentApi } from "@/features/agents/api/agentApi";
+import type { Agent } from "@/features/agents/types";
 
 export default function CustomerManagementPage() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [agents, setAgents] = useState<Agent[]>([]);
 
   const {
     customers,
@@ -26,6 +29,10 @@ export default function CustomerManagementPage() {
     activeSearch,
     statusFilter,
     setStatusFilter,
+    agentFilter,
+    setAgentFilter,
+    teamFilter,
+    setTeamFilter,
     applySearch,
     resetFilters,
     reloadPage,
@@ -35,7 +42,21 @@ export default function CustomerManagementPage() {
   // 페이지나 필터가 바뀌면 선택 초기화
   useEffect(() => {
     setSelectedIds([]);
-  }, [page, activeSearch, statusFilter]);
+  }, [page, activeSearch, statusFilter, agentFilter, teamFilter]);
+
+  // 담당자 목록 로딩 (필터용)
+  useEffect(() => {
+    const fetchAgents = async () => {
+      try {
+        const data = await agentApi.getAgents();
+        setAgents(data);
+      } catch (error) {
+        console.error(error);
+        toast.error("담당자 목록 로딩 실패");
+      }
+    };
+    fetchAgents();
+  }, []);
 
   // 1. 엑셀 업로드 핸들러
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -130,7 +151,17 @@ export default function CustomerManagementPage() {
         onSearchKeyDown={handleSearchKeyDown}
         statusFilter={statusFilter}
         onStatusChange={setStatusFilter}
-        showReset={Boolean(activeSearch) || statusFilter !== "ALL"}
+        agentFilter={agentFilter}
+        onAgentChange={setAgentFilter}
+        teamFilter={teamFilter}
+        onTeamChange={setTeamFilter}
+        agents={agents}
+        showReset={
+          Boolean(activeSearch) ||
+          statusFilter !== "ALL" ||
+          agentFilter !== "ALL" ||
+          teamFilter !== "ALL"
+        }
         onReset={resetFilters}
       />
 

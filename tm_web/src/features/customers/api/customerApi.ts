@@ -10,7 +10,7 @@ export const resetCustomerDB = async () => {
 export const customerApi = {
 
   getCustomers: async (params: CustomerParams) => {
-      const { page = 1, status, agentId, search } = params;
+      const { page = 1, status, agentId, team, search } = params;
       
       // URL 파라미터 생성 (URLSearchParams 사용)
       const queryParams = new URLSearchParams();
@@ -18,6 +18,7 @@ export const customerApi = {
       
       if (status && status !== 'ALL') queryParams.append('status', status);
       if (agentId && agentId !== 'ALL') queryParams.append('assigned_agent', agentId);
+      if (team && team !== 'ALL') queryParams.append('team', team);
       if (search) queryParams.append('search', search); // 백엔드 검색 구현 시 사용
   
       const response = await api.get<PaginatedResponse<Customer>>(`/customers/?${queryParams.toString()}`);

@@ -13,6 +13,8 @@ export function useCustomerList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [agentFilter, setAgentFilter] = useState("ALL");
+  const [teamFilter, setTeamFilter] = useState("ALL");
   const prevFilterKey = useRef<string>("");
 
   const fetchData = useCallback(
@@ -23,6 +25,8 @@ export function useCustomerList() {
           page: targetPage,
           search: activeSearch,
           status: statusFilter === "ALL" ? undefined : statusFilter,
+          agentId: agentFilter === "ALL" ? undefined : agentFilter,
+          team: teamFilter === "ALL" ? undefined : teamFilter,
         });
 
         setCustomers(data.results);
@@ -35,10 +39,10 @@ export function useCustomerList() {
         setIsLoading(false);
       }
     },
-    [activeSearch, statusFilter]
+    [activeSearch, statusFilter, agentFilter, teamFilter]
   );
 
-  const filterKey = `${activeSearch}|${statusFilter}`;
+  const filterKey = `${activeSearch}|${statusFilter}|${agentFilter}|${teamFilter}`;
 
   useEffect(() => {
     if (prevFilterKey.current !== filterKey) {
@@ -60,6 +64,8 @@ export function useCustomerList() {
     setSearchTerm("");
     setActiveSearch("");
     setStatusFilter("ALL");
+    setAgentFilter("ALL");
+    setTeamFilter("ALL");
   }, []);
 
   const reloadPage = useCallback(() => {
@@ -85,6 +91,10 @@ export function useCustomerList() {
     activeSearch,
     statusFilter,
     setStatusFilter,
+    agentFilter,
+    setAgentFilter,
+    teamFilter,
+    setTeamFilter,
     applySearch,
     resetFilters,
     reloadPage,
