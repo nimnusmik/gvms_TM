@@ -174,3 +174,19 @@ class CustomerViewSet(viewsets.ModelViewSet):
             'message': '자동 배정 작업이 시작되었습니다.',
             'info': '결과는 [자동 배정 이력] 메뉴에서 잠시 후 확인 가능합니다.'
         }, status=202)
+
+    # ----------------------------------------------------------------
+    # 🌟 기능: 고객 DB 초기화 (전체 삭제)
+    # ----------------------------------------------------------------
+    @action(detail=False, methods=['delete'], url_path='reset-db')
+    def reset_db(self, request):
+        """
+        [관리자용] 고객 DB 전체 삭제
+        """
+        with transaction.atomic():
+            deleted_count, _ = Customer.objects.all().delete()
+
+        return Response({
+            "message": f"✅ 고객 DB {deleted_count}건이 삭제되었습니다.",
+            "deleted_count": deleted_count
+        }, status=status.HTTP_200_OK)

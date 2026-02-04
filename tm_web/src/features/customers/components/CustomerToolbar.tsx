@@ -77,9 +77,10 @@ export function CustomerToolbar({
 
           <Button
             variant="default"
+            size="sm"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className="shadow-sm"
+            className="shadow-sm gap-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
           >
             <UploadCloud className="mr-2 h-4 w-4" />
             {isUploading ? "업로드 중..." : "엑셀 업로드"}
