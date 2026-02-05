@@ -17,7 +17,7 @@ def task_run_auto_assign(triggered_by='SYSTEM'):
     # 1. 로그 데이터 초기화
     log_data = {
         'triggered_by': triggered_by,
-        'status': 'SUCCESS',
+        'status': AssignmentLog.Status.SUCCESS,
         'total_assigned': 0,
         'agent_count': 0,
         'result_detail': {},   # {"김철수": 10, "이영희": 5}
@@ -35,7 +35,7 @@ def task_run_auto_assign(triggered_by='SYSTEM'):
         log_data['agent_count'] = agents.count()
 
         if log_data['agent_count'] == 0:
-            log_data['status'] = 'FAILURE'
+            log_data['status'] = AssignmentLog.Status.FAILURE
             log_data['error_message'] = "자동 배정이 활성화된 상담원이 없습니다."
         
         else:
@@ -62,7 +62,7 @@ def task_run_auto_assign(triggered_by='SYSTEM'):
 
     except Exception as e:
         # 전체 로직 에러 처리
-        log_data['status'] = 'FAILURE'
+        log_data['status'] = AssignmentLog.Status.FAILURE
         log_data['error_message'] = str(e)
         log_data['result_detail']['traceback'] = traceback.format_exc()
         print(f"❌ [Celery Error] Auto Assign Failed: {e}")

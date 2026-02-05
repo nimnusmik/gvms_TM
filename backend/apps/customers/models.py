@@ -61,23 +61,23 @@ class Customer(models.Model):
         ordering = ['-created_at'] # 최신 DB부터 보여주기
 
     def __str__(self):
-        return f"{self.name} - {self.team} ({self.status})"
-
+        name = self.name or "이름 없음"
+        team = self.team or "미지정"
+        return f"{name} - {team} ({self.status})"
 
 
 class AssignmentLog(models.Model):
-    STATUS_CHOICES = (
-        ('SUCCESS', '성공'),
-        ('PARTIAL_SUCCESS', '부분 성공'),
-        ('FAILURE', '실패'),
-    )
+    class Status(models.TextChoices):
+        SUCCESS = 'SUCCESS', '성공'
+        PARTIAL_SUCCESS = 'PARTIAL_SUCCESS', '부분 성공'
+        FAILURE = 'FAILURE', '실패'
 
     executed_at = models.DateTimeField(auto_now_add=True, verbose_name="실행 일시")
     triggered_by = models.CharField(max_length=50, default='SYSTEM', verbose_name="실행자")
     total_assigned = models.IntegerField(default=0, verbose_name="총 배정 건수")
     agent_count = models.IntegerField(default=0, verbose_name="참여 상담원 수") 
     result_detail = models.JSONField(default=dict, blank=True, verbose_name="상세 배정 내역")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='SUCCESS', verbose_name="상태")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.SUCCESS, verbose_name="상태")
     error_message = models.TextField(blank=True, null=True, verbose_name="에러 로그")
 
     class Meta:

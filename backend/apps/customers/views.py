@@ -16,6 +16,20 @@ from django.conf import settings
 from .models import Customer
 from .serializers import CustomerSerializer
 from .tasks import task_run_auto_assign
+from apps.agents.models import Agent
+
+# 상수 정의
+REQUIRED_COLUMNS = ['이름', '전화번호', '관심분야']
+TEAM_MAPPING = {
+    '배터리': Customer.Team.BATTERY,
+    '모빌리티': Customer.Team.MOBILITY,
+    '태양광': Customer.Team.SOLAR,
+    '산업기계': Customer.Team.MACHINE,
+    '산업 기계': Customer.Team.MACHINE,
+}
+EXCEL_HEADER_ROW_OFFSET = 2  # 엑셀 헤더(1행) + 0-based index 보정
+MAX_ERROR_REPORTS = 5
+
 
 # 1. 엑셀 업로드 전용 뷰 (분리)
 class CustomerUploadView(APIView):
@@ -27,59 +41,86 @@ class CustomerUploadView(APIView):
             return Response({"error": "파일이 없습니다."}, status=400)
 
         try:
-            df = pd.read_excel(file)
+            df = self._read_excel_file(file)
+            self._validate_columns(df)
             
-            # NaN(빈값)을 None으로 변환 (올려주신 Celery 로직 반영)
-            df = df.where(pd.notnull(df), None)
-
-            # 필수 컬럼 체크
-            required = ['이름', '전화번호', '관심분야']
-            if not all(col in df.columns for col in required):
-                return Response({"error": f"필수 컬럼 누락: {required}"}, status=400)
-
-            # 팀 매핑
-            team_map = {
-                '배터리': 'BATTERY', '모빌리티': 'MOBILITY',
-                '태양광': 'SOLAR', '산업기계': 'MACHINE', '산업 기계': 'MACHINE'
-            }
-
-            created_count = 0
-            errors = []
-
-            with transaction.atomic():
-                for index, row in df.iterrows():
-                    try:
-                        name = str(row['이름']).strip()
-                        raw_phone = str(row['전화번호']) if row['전화번호'] else ""
-                        phone = raw_phone.replace('-', '').strip()
-                        team_kor = str(row['관심분야']).strip()
-                        
-                        if not phone: continue # 전화번호 없으면 스킵
-
-                        team_code = team_map.get(team_kor)
-                        
-                        # 중복 체크
-                        if Customer.objects.filter(phone=phone).exists():
-                            continue
-                            
-                        Customer.objects.create(
-                            name=name,
-                            phone=phone,
-                            team=team_code,
-                            status='NEW'
-                        )
-                        created_count += 1
-                        
-                    except Exception as e:
-                        errors.append(f"{index+2}행 에러: {str(e)}")
-
+            created_count, errors = self._process_customers(df)
+            
             return Response({
                 "message": f"✅ {created_count}건 업로드 성공!",
-                "errors": errors[:5]
+                "errors": errors[:MAX_ERROR_REPORTS]
             }, status=201)
 
+        except ValueError as e:
+            return Response({"error": str(e)}, status=400)
         except Exception as e:
             return Response({"error": f"파일 처리 중 오류: {str(e)}"}, status=500)
+
+    def _read_excel_file(self, file):
+        """엑셀 파일을 읽고 NaN 값을 None으로 변환"""
+        df = pd.read_excel(file)
+        return df.where(pd.notnull(df), None)
+
+    def _validate_columns(self, df):
+        """필수 컬럼 존재 여부 검증"""
+        missing_columns = [col for col in REQUIRED_COLUMNS if col not in df.columns]
+        if missing_columns:
+            raise ValueError(f"필수 컬럼 누락: {missing_columns}")
+
+    def _process_customers(self, df):
+        """고객 데이터 처리 및 DB 저장"""
+        created_count = 0
+        errors = []
+
+        with transaction.atomic():
+            for index, row in df.iterrows():
+                try:
+                    customer_data = self._extract_customer_data(row)
+                    if not customer_data:
+                        continue
+                    
+                    if self._is_duplicate_phone(customer_data['phone']):
+                        continue
+                    
+                    self._create_customer(customer_data)
+                    created_count += 1
+                    
+                except Exception as e:
+                    row_number = index + EXCEL_HEADER_ROW_OFFSET
+                    errors.append(f"{row_number}행 에러: {str(e)}")
+
+        return created_count, errors
+
+    def _extract_customer_data(self, row):
+        """행 데이터에서 고객 정보 추출"""
+        name = str(row['이름']).strip() if row['이름'] else None
+        raw_phone = str(row['전화번호']) if row['전화번호'] else ""
+        phone = raw_phone.replace('-', '').strip()
+        team_kor = str(row['관심분야']).strip() if row['관심분야'] else ""
+        
+        if not phone:
+            return None
+        
+        team_code = TEAM_MAPPING.get(team_kor)
+        
+        return {
+            'name': name,
+            'phone': phone,
+            'team': team_code,
+        }
+
+    def _is_duplicate_phone(self, phone):
+        """전화번호 중복 체크"""
+        return Customer.objects.filter(phone=phone).exists()
+
+    def _create_customer(self, customer_data):
+        """고객 레코드 생성"""
+        Customer.objects.create(
+            name=customer_data['name'],
+            phone=customer_data['phone'],
+            team=customer_data['team'],
+            status=Customer.Status.NEW
+        )
 
 
 class CustomerViewSet(viewsets.ModelViewSet):
