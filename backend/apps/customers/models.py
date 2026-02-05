@@ -24,6 +24,15 @@ class Customer(models.Model):
     age = models.IntegerField(null=True, blank=True, verbose_name="나이")
     gender = models.CharField(max_length=10, null=True, blank=True, verbose_name="성별")
     region = models.CharField(max_length=255, null=True, blank=True, verbose_name="지역")
+    
+    # 엑셀의 원본 분류 정보 (분야1, 2, 3)
+    category_1 = models.CharField(max_length=50, null=True, blank=True, verbose_name="분야1")
+    category_2 = models.CharField(max_length=50, null=True, blank=True, verbose_name="분야2")
+    category_3 = models.CharField(max_length=50, null=True, blank=True, verbose_name="분야3")
+    
+    # 지역 정보 상세 (시도, 시군구)
+    region_1 = models.CharField(max_length=50, null=True, blank=True, verbose_name="지역1")  # 예: 경기도
+    region_2 = models.CharField(max_length=50, null=True, blank=True, verbose_name="지역2")  # 예: 화성시
 
     team = models.CharField(
         max_length=20,

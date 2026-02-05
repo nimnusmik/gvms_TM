@@ -18,20 +18,19 @@ from .serializers import CustomerSerializer
 from .tasks import task_run_auto_assign
 from apps.agents.models import Agent
 
-# 상수 정의
-REQUIRED_COLUMNS = ['이름', '전화번호', '관심분야']
-TEAM_MAPPING = {
-    '배터리': Customer.Team.BATTERY,
-    '모빌리티': Customer.Team.MOBILITY,
-    '태양광': Customer.Team.SOLAR,
-    '산업기계': Customer.Team.MACHINE,
-    '산업 기계': Customer.Team.MACHINE,
+# 유연한 컬럼 매핑 정의 (우선순위 순서)
+# "이 컬럼들 중 하나라도 있으면 그걸 해당 필드로 쓰겠다"는 뜻
+
+COLUMN_MAPPING = {
+    'name': ['이름', '회사명', '사찰명', '상호명', '대표자', '성명'], 
+    'phone': ['전화번호', '휴대폰', '연락처', 'Tel', 'Phone'],
+    'category_1': ['분야1', '업종', '업태'], 
+    'category_2': ['분야2', '주생산품', '종목'],
+    'category_3': ['분야3'],
+    'region_1': ['지역1', '시도'],
+    'region_2': ['지역2', '시군구'],
 }
-EXCEL_HEADER_ROW_OFFSET = 2  # 엑셀 헤더(1행) + 0-based index 보정
-MAX_ERROR_REPORTS = 5
 
-
-# 1. 엑셀 업로드 전용 뷰 (분리)
 class CustomerUploadView(APIView):
     parser_classes = [parsers.MultiPartParser, parsers.FormParser]
 
@@ -41,85 +40,139 @@ class CustomerUploadView(APIView):
             return Response({"error": "파일이 없습니다."}, status=400)
 
         try:
+            # 1. 파일 읽기 & 헤더 공백 제거 (핵심!)
             df = self._read_excel_file(file)
+            
+            # 2. 컬럼 검증
             self._validate_columns(df)
             
-            created_count, errors = self._process_customers(df)
+            # 3. 데이터 처리 (디버깅 정보 포함)
+            result = self._process_customers(df)
             
-            return Response({
-                "message": f"✅ {created_count}건 업로드 성공!",
-                "errors": errors[:MAX_ERROR_REPORTS]
-            }, status=201)
+            return Response(result, status=201)
 
         except ValueError as e:
             return Response({"error": str(e)}, status=400)
         except Exception as e:
-            return Response({"error": f"파일 처리 중 오류: {str(e)}"}, status=500)
+            print(f"❌ 업로드 중 치명적 에러: {e}")
+            return Response({"error": f"서버 에러: {str(e)}"}, status=500)
 
     def _read_excel_file(self, file):
-        """엑셀 파일을 읽고 NaN 값을 None으로 변환"""
+        """엑셀 파일을 읽고 헤더의 앞뒤 공백을 제거함"""
         df = pd.read_excel(file)
+        # 👇 [핵심] 컬럼명에 있는 공백 제거 ("전화번호 " -> "전화번호")
+        df.columns = df.columns.str.strip()
+        # NaN 값을 None으로 변환
         return df.where(pd.notnull(df), None)
 
     def _validate_columns(self, df):
-        """필수 컬럼 존재 여부 검증"""
-        missing_columns = [col for col in REQUIRED_COLUMNS if col not in df.columns]
-        if missing_columns:
-            raise ValueError(f"필수 컬럼 누락: {missing_columns}")
+        """매핑된 컬럼 중 하나라도 존재하는지 확인"""
+        # 디버깅용: 현재 엑셀의 컬럼명 출력
+        print(f"📂 업로드된 엑셀 컬럼: {list(df.columns)}")
+
+        has_name = any(col in df.columns for col in COLUMN_MAPPING['name'])
+        has_phone = any(col in df.columns for col in COLUMN_MAPPING['phone'])
+
+        if not has_name:
+            raise ValueError(f"이름 관련 컬럼을 찾을 수 없습니다. (확인된 컬럼: {list(df.columns)})")
+        if not has_phone:
+            raise ValueError(f"전화번호 관련 컬럼을 찾을 수 없습니다.")
 
     def _process_customers(self, df):
-        """고객 데이터 처리 및 DB 저장"""
         created_count = 0
+        skipped_count = 0
         errors = []
+        skip_reasons = {} # 왜 건너뛰었는지 이유 기록
 
         with transaction.atomic():
             for index, row in df.iterrows():
                 try:
+                    # 1. 데이터 추출
                     customer_data = self._extract_customer_data(row)
+                    
                     if not customer_data:
+                        skipped_count += 1
+                        reason = "필수데이터(이름/전화번호) 누락"
+                        skip_reasons[reason] = skip_reasons.get(reason, 0) + 1
                         continue
                     
+                    # 2. 중복 체크
                     if self._is_duplicate_phone(customer_data['phone']):
+                        skipped_count += 1
+                        reason = "이미 등록된 번호"
+                        skip_reasons[reason] = skip_reasons.get(reason, 0) + 1
                         continue
                     
+                    # 3. 저장
                     self._create_customer(customer_data)
                     created_count += 1
                     
                 except Exception as e:
-                    row_number = index + EXCEL_HEADER_ROW_OFFSET
-                    errors.append(f"{row_number}행 에러: {str(e)}")
+                    errors.append(f"{index+2}행 에러: {str(e)}")
 
-        return created_count, errors
+        # 결과 리턴
+        return {
+            "message": f"✅ 총 {len(df)}건 중 {created_count}건 성공!",
+            "skipped_count": skipped_count,
+            "skip_reasons": skip_reasons, # 👇 프론트에서 이유를 볼 수 있게 함
+            "errors": errors[:10]
+        }
 
     def _extract_customer_data(self, row):
-        """행 데이터에서 고객 정보 추출"""
-        name = str(row['이름']).strip() if row['이름'] else None
-        raw_phone = str(row['전화번호']) if row['전화번호'] else ""
-        phone = raw_phone.replace('-', '').strip()
-        team_kor = str(row['관심분야']).strip() if row['관심분야'] else ""
+        name = self._get_value_from_candidates(row, COLUMN_MAPPING['name'])
+        raw_phone = self._get_value_from_candidates(row, COLUMN_MAPPING['phone'])
         
-        if not phone:
+        # 이름이나 전화번호가 없으면 None 리턴
+        if not name or not raw_phone:
+            # 디버깅: 왜 없는지 확인해보고 싶으면 여기서 print(row) 해보세요
             return None
+            
+        # 전화번호 정제 (하이픈 제거)
+        phone = str(raw_phone).replace('-', '').replace(' ', '').strip()
         
-        team_code = TEAM_MAPPING.get(team_kor)
+        # 분야/지역 데이터 추출
+        cat1 = self._get_value_from_candidates(row, COLUMN_MAPPING['category_1'])
+        cat2 = self._get_value_from_candidates(row, COLUMN_MAPPING['category_2'])
+        cat3 = self._get_value_from_candidates(row, COLUMN_MAPPING['category_3'])
+        reg1 = self._get_value_from_candidates(row, COLUMN_MAPPING['region_1'])
+        reg2 = self._get_value_from_candidates(row, COLUMN_MAPPING['region_2'])
         
+        # 지역 합치기
+        region = f"{reg1 or ''} {reg2 or ''}".strip()
+
         return {
             'name': name,
             'phone': phone,
-            'team': team_code,
+            'category_1': cat1,
+            'category_2': cat2,
+            'category_3': cat3,
+            'region': region if region else None,
         }
 
+    def _get_value_from_candidates(self, row, candidates):
+        """후보 컬럼들을 순회하며 값이 있는 경우 반환"""
+        for col in candidates:
+            # 1. 컬럼이 엑셀에 있고
+            if col in row:
+                val = row[col]
+                # 2. 값이 비어있지 않은 경우 (None, NaN, 빈문자열 체크)
+                if val is not None and str(val).strip() != "" and str(val).lower() != "nan":
+                    return str(val).strip()
+        return None
+
     def _is_duplicate_phone(self, phone):
-        """전화번호 중복 체크"""
         return Customer.objects.filter(phone=phone).exists()
 
-    def _create_customer(self, customer_data):
-        """고객 레코드 생성"""
+    def _create_customer(self, data):
         Customer.objects.create(
-            name=customer_data['name'],
-            phone=customer_data['phone'],
-            team=customer_data['team'],
-            status=Customer.Status.NEW
+            name=data['name'],
+            phone=data['phone'],
+            status=Customer.Status.NEW,
+            category_1=data['category_1'],
+            category_2=data['category_2'],
+            category_3=data['category_3'],
+            region=data['region'],
+            team=None 
         )
 
 
@@ -138,7 +191,11 @@ class CustomerViewSet(viewsets.ModelViewSet):
     filterset_fields = ['status', 'team', 'assigned_agent'] 
     
     # 2. 검색어가 포함되어야 하는 필드들
-    search_fields = ['name', 'phone', 'memo', 'region', 'team'] 
+    search_fields = [
+        'name', 'phone', 'memo', 'region', 'team',
+        'category_1', 'category_2', 'category_3',  # 분야 검색 추가
+        'region_1', 'region_2',  # 지역 검색 추가
+    ] 
     
     # 3. 정렬 가능 필드
     ordering_fields = ['created_at', 'updated_at']

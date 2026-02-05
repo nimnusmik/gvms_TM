@@ -32,6 +32,8 @@ build/
 .env
 .env.*
 
+.cursor/
+
 # OS / editor
 .DS_Store
 Thumbs.db
