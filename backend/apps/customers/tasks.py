@@ -40,11 +40,23 @@ def task_process_large_excel(file_path, user_id):
     CHUNK_SIZE = 5000  # 대용량 처리용 청크 사이즈
 
     try:
+        print(f"📄 엑셀 처리 시작: {file_path}")
         for chunk_df in _iter_excel_chunks(file_path, engine=engine, chunk_size=CHUNK_SIZE):
             
             # 1. 데이터 전처리
             chunk_df.columns = chunk_df.columns.str.strip()
             chunk_df = chunk_df.where(pd.notnull(chunk_df), None)
+
+            # 디버깅: 헤더/유효 행 수 확인
+            try:
+                print(f"🧾 컬럼: {list(chunk_df.columns)}")
+                if '사찰명' in chunk_df.columns and '전화번호' in chunk_df.columns:
+                    valid_name = chunk_df['사찰명'].notna().sum()
+                    valid_phone = chunk_df['전화번호'].notna().sum()
+                    valid_both = chunk_df[['사찰명', '전화번호']].dropna().shape[0]
+                    print(f"✅ 사찰명 notnull: {valid_name}, 전화번호 notnull: {valid_phone}, 둘다 notnull: {valid_both}")
+            except Exception as debug_e:
+                print(f"⚠️ 헤더/유효행 디버깅 실패: {debug_e}")
 
             customer_batch = []
             seen_phones_in_batch = set() # 엑셀 파일 '내부'의 중복만 거르기 용도
