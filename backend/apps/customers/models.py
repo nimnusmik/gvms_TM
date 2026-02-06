@@ -2,12 +2,6 @@ from django.db import models
 
 class Customer(models.Model):
 
-    class Team(models.TextChoices):
-        BATTERY = 'BATTERY', '배터리'
-        MOBILITY = 'MOBILITY', '모빌리티'
-        SOLAR = 'SOLAR', '태양광'
-        MACHINE = 'MACHINE', '산업기계'
-
     # 상담 상태 정의 (Enum 역할)
     class Status(models.TextChoices):
         NEW = 'NEW', '접수(신규)'          # 아직 아무도 전화 안 함
@@ -20,7 +14,11 @@ class Customer(models.Model):
 
     # 1. 기본 정보
     name = models.CharField(max_length=100, null=True, blank=True, verbose_name="고객명")
-    phone = models.CharField(max_length=40, null=True, blank=True, unique=True, verbose_name="연락처") # 중복 DB 방지
+    phone = models.CharField(
+        max_length=20, 
+        unique=True,  # 핵심: 중복된 전화번호는 저장 불가
+        verbose_name="연락처"
+    )
     age = models.IntegerField(null=True, blank=True, verbose_name="나이")
     gender = models.CharField(max_length=10, null=True, blank=True, verbose_name="성별")
     region = models.CharField(max_length=255, null=True, blank=True, verbose_name="지역")
@@ -33,14 +31,6 @@ class Customer(models.Model):
     # 지역 정보 상세 (시도, 시군구)
     region_1 = models.CharField(max_length=50, null=True, blank=True, verbose_name="지역1")  # 예: 경기도
     region_2 = models.CharField(max_length=50, null=True, blank=True, verbose_name="지역2")  # 예: 화성시
-
-    team = models.CharField(
-        max_length=20,
-        choices=Team.choices,
-        null=True,  # 기존 데이터 때문에 일단 null 허용
-        blank=True,
-        verbose_name="관심 분야(팀)"
-    )
 
     # 2. 관리 정보
     status = models.CharField(
@@ -68,11 +58,16 @@ class Customer(models.Model):
         db_table = 'tm_customers'
         verbose_name = '고객 DB'
         ordering = ['-created_at'] # 최신 DB부터 보여주기
+        indexes = [
+            models.Index(
+                fields=['status', 'assigned_agent', 'created_at'],
+                name='cust_stat_agent_ct',
+            ),
+        ]
 
     def __str__(self):
         name = self.name or "이름 없음"
-        team = self.team or "미지정"
-        return f"{name} - {team} ({self.status})"
+        return f"{name} ({self.status})"
 
 
 class AssignmentLog(models.Model):

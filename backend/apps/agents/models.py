@@ -18,10 +18,7 @@ class AgentStatus(models.TextChoices):
     RESIGNED = 'RESIGNED', '퇴사'
 
 class Team(models.TextChoices):
-    BATTERY = 'BATTERY', '배터리'
-    MOBILITY = 'MOBILITY', '모빌리티'
-    SOLAR = 'SOLAR', '태양광'
-    MACHINE = 'MACHINE', '산업기계'
+    SALES_1 = 'SALES_1', '영업 1팀'
 
 # 2. 모델 정의
 class Agent(models.Model):

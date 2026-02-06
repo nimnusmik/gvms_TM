@@ -3,8 +3,8 @@ from .models import Customer, AssignmentLog
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'phone', 'team', 'status', 'assigned_agent', 'created_at')
-    list_filter = ('status', 'team', 'created_at')
+    list_display = ('name', 'phone', 'status', 'assigned_agent', 'created_at')
+    list_filter = ('status', 'created_at')
     search_fields = ('name', 'phone', 'memo')
     ordering = ('-created_at',)
 

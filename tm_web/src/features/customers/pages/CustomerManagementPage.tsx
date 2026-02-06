@@ -17,6 +17,7 @@ export default function CustomerManagementPage() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [isUploadProcessing, setIsUploadProcessing] = useState(false);
 
   const {
     customers,
@@ -31,8 +32,6 @@ export default function CustomerManagementPage() {
     setStatusFilter,
     agentFilter,
     setAgentFilter,
-    teamFilter,
-    setTeamFilter,
     applySearch,
     resetFilters,
     reloadPage,
@@ -42,7 +41,7 @@ export default function CustomerManagementPage() {
   // 페이지나 필터가 바뀌면 선택 초기화
   useEffect(() => {
     setSelectedIds([]);
-  }, [page, activeSearch, statusFilter, agentFilter, teamFilter]);
+  }, [page, activeSearch, statusFilter, agentFilter]);
 
   // 담당자 목록 로딩 (필터용)
   useEffect(() => {
@@ -63,8 +62,8 @@ export default function CustomerManagementPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("파일 크기는 10MB를 넘을 수 없습니다.");
+    if (file.size > 70 * 1024 * 1024) {
+      toast.error("파일 크기는 70MB를 넘을 수 없습니다.");
       return;
     }
     
@@ -77,6 +76,7 @@ export default function CustomerManagementPage() {
     try {
       const response = await customerApi.uploadExcel(file);
       toast.success(response.message || "업로드가 완료되었습니다!");
+      setIsUploadProcessing(true);
       reloadFirstPage();
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || "업로드 실패: 파일 형식을 확인해주세요.";
@@ -153,14 +153,13 @@ export default function CustomerManagementPage() {
         onStatusChange={setStatusFilter}
         agentFilter={agentFilter}
         onAgentChange={setAgentFilter}
-        teamFilter={teamFilter}
-        onTeamChange={setTeamFilter}
         agents={agents}
+        uploadProcessing={isUploadProcessing}
+        onDismissUploadProcessing={() => setIsUploadProcessing(false)}
         showReset={
           Boolean(activeSearch) ||
           statusFilter !== "ALL" ||
-          agentFilter !== "ALL" ||
-          teamFilter !== "ALL"
+          agentFilter !== "ALL"
         }
         onReset={resetFilters}
       />

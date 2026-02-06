@@ -3,6 +3,7 @@
 import logging
 from django.db import transaction
 from django.utils import timezone
+from django.db.models import Count
 from .models import Customer
 from apps.agents.models import Agent
 
@@ -62,8 +63,7 @@ def _get_candidate_ids(agent: Agent, needed_count: int) -> list[int]:
     """
     candidates = Customer.objects.select_for_update(skip_locked=True).filter(
         assigned_agent__isnull=True,  # 담당자 없음 (미배정)
-        status=Customer.Status.NEW,    # 신규 상태
-        team=agent.team                # 상담원과 같은 팀 (관심사 일치)
+        status=Customer.Status.NEW     # 신규 상태
     ).order_by('created_at')[:needed_count]  # 오래된 순으로, 필요한 만큼만
     
     return [c.id for c in candidates]
@@ -76,3 +76,82 @@ def _assign_customers_to_agent(agent: Agent, candidate_ids: list[int]) -> int:
         status=Customer.Status.ASSIGNED,
         assigned_at=timezone.now()
     )
+
+
+def run_auto_assign_batch_all(agents: list[Agent]) -> dict[int, int]:
+    """
+    [배치 로직] 전체 상담원 풀에 대해 고객을 등록순으로 균등 배정
+    Returns: {agent_id: assigned_count}
+    """
+    if not agents:
+        return {}
+
+    # 현재 보유량을 한 번에 계산
+    holding_counts = {
+        row["assigned_agent"]: row["count"]
+        for row in Customer.objects.filter(
+            assigned_agent__in=agents, status=Customer.Status.ASSIGNED
+        )
+        .values("assigned_agent")
+        .annotate(count=Count("id"))
+    }
+
+    # 필요한 수량 계산
+    needed_by_agent: dict[int, int] = {}
+    total_needed = 0
+    for agent in agents:
+        current_holding = holding_counts.get(agent.agent_id, 0)
+        needed = max(agent.daily_cap - current_holding, 0)
+        if needed > 0:
+            needed_by_agent[agent.agent_id] = needed
+            total_needed += needed
+
+    if total_needed == 0:
+        return {agent.agent_id: 0 for agent in agents}
+
+    assigned_by_agent: dict[int, int] = {agent.agent_id: 0 for agent in agents}
+
+    # 전체 풀 기준으로 한 번에 후보를 잠금
+    with transaction.atomic():
+        candidates = list(
+            Customer.objects.select_for_update(skip_locked=True)
+            .filter(
+                assigned_agent__isnull=True,
+                status=Customer.Status.NEW,
+            )
+            .order_by("created_at")[:total_needed]
+        )
+
+        if not candidates:
+            return assigned_by_agent
+
+        agent_cycle = [agent for agent in agents if needed_by_agent.get(agent.agent_id, 0) > 0]
+        if not agent_cycle:
+            return assigned_by_agent
+
+        assigned_ids_by_agent: dict[int, list[int]] = {agent.agent_id: [] for agent in agent_cycle}
+        idx = 0
+
+        for customer in candidates:
+            # 필요한 인원이 있을 때까지 순회
+            while needed_by_agent[agent_cycle[idx].agent_id] <= 0:
+                idx = (idx + 1) % len(agent_cycle)
+
+            agent_id = agent_cycle[idx].agent_id
+            assigned_ids_by_agent[agent_id].append(customer.id)
+            needed_by_agent[agent_id] -= 1
+            idx = (idx + 1) % len(agent_cycle)
+
+        now = timezone.now()
+        for agent in agent_cycle:
+            ids = assigned_ids_by_agent.get(agent.agent_id, [])
+            if not ids:
+                continue
+            updated = Customer.objects.filter(id__in=ids).update(
+                assigned_agent=agent,
+                status=Customer.Status.ASSIGNED,
+                assigned_at=now,
+            )
+            assigned_by_agent[agent.agent_id] = updated
+
+    return assigned_by_agent

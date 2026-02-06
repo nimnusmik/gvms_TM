@@ -13,7 +13,7 @@ from .models import Agent, AgentStatus
 from .serializers import AgentAdminSerializer, AccountSimpleSerializer, AgentSerializer
 from django.db.models import Count
 
-from apps.customers.services import run_auto_assign_logic
+from apps.customers.services import run_auto_assign_logic, run_auto_assign_batch_all
 
 
 User = get_user_model()
@@ -222,18 +222,12 @@ class AgentViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], url_path='run-daily-assign')
     def run_daily_assign(self, request):
         # 1. 대상 상담원 선정 (퇴사자 제외, 자동배정 켜진 사람)
-        active_agents = Agent.objects.exclude(status='RESIGNED').filter(is_auto_assign=True)
-        
-        total_assigned = 0
-        agent_count = 0
-        
-        # 2. 한 명씩 순회하며 리필
-        for agent in active_agents:
-            count = run_auto_assign_logic(agent)
-            if count > 0:
-                total_assigned += count
-                agent_count += 1
-                
+        active_agents = Agent.objects.exclude(status='RESIGNED').filter(is_auto_assign=True).order_by('created_at')
+
+        assigned_map = run_auto_assign_batch_all(list(active_agents))
+        total_assigned = sum(assigned_map.values())
+        agent_count = sum(1 for v in assigned_map.values() if v > 0)
+
         return Response({
             "message": f"총 {len(active_agents)}명 중 {agent_count}명에게 {total_assigned}건의 DB가 리필되었습니다."
         })

@@ -35,6 +35,5 @@ export interface CustomerParams {
     page?: number;
     status?: string;
     agentId?: string;
-    team?: string;
     search?: string; 
   }

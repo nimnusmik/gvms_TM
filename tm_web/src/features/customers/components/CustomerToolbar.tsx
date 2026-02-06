@@ -2,11 +2,10 @@
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { RefreshCcw, Search, UploadCloud, X } from "lucide-react";
+import { RefreshCcw, Search, UploadCloud, X, Loader2, Info } from "lucide-react";
 import type { ChangeEvent, KeyboardEvent, RefObject } from "react";
 
 import { CustomerResetDialog } from "./CustomerResetDialog";
-import { TEAMS } from "@/features/agents/types";
 import type { Agent } from "@/features/agents/types";
 
 interface CustomerToolbarProps {
@@ -23,9 +22,9 @@ interface CustomerToolbarProps {
   onStatusChange: (value: string) => void;
   agentFilter: string;
   onAgentChange: (value: string) => void;
-  teamFilter: string;
-  onTeamChange: (value: string) => void;
   agents: Agent[];
+  uploadProcessing: boolean;
+  onDismissUploadProcessing: () => void;
   showReset: boolean;
   onReset: () => void;
 }
@@ -44,9 +43,9 @@ export function CustomerToolbar({
   onStatusChange,
   agentFilter,
   onAgentChange,
-  teamFilter,
-  onTeamChange,
   agents,
+  uploadProcessing,
+  onDismissUploadProcessing,
   showReset,
   onReset,
 }: CustomerToolbarProps) {
@@ -136,19 +135,6 @@ export function CustomerToolbar({
           ))}
         </select>
 
-        <select
-          className="customer-filter-select"
-          value={teamFilter}
-          onChange={(e) => onTeamChange(e.target.value)}
-        >
-          <option value="ALL">관심분야 전체</option>
-          {TEAMS.map((team) => (
-            <option key={team.value} value={team.value}>
-              {team.label}
-            </option>
-          ))}
-        </select>
-
         {showReset && (
           <Button
             variant="ghost"
@@ -160,6 +146,27 @@ export function CustomerToolbar({
           </Button>
         )}
       </div>
+
+      {uploadProcessing && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+          <div className="flex items-center gap-2 text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="font-semibold">대용량 엑셀 처리 중</span>
+            <span className="text-amber-800/80">
+              백그라운드에서 처리 중입니다. 완료 후 새로고침 해주세요.
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDismissUploadProcessing}
+            className="text-amber-900 hover:bg-amber-100"
+            title="알림 닫기"
+          >
+            <Info className="mr-1 h-4 w-4" /> 확인
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

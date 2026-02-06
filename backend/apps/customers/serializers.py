@@ -9,8 +9,6 @@ class CustomerSerializer(serializers.ModelSerializer):
         default='-'
     )
 
-    team_display = serializers.CharField(source='get_team_display', read_only=True)
-    
     # 전화 횟수 (상담 이력 개수 카운트) - 추후 상담 이력 모델이 생기면 활성화
     # call_count = serializers.SerializerMethodField()
     
@@ -23,7 +21,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         model = Customer
         fields = [
             'id', 'name', 'phone', 'status', 'assigned_agent', 'agent_name', 
-            'created_at', 'team', 'team_display',
+            'created_at',
             # 신규 필드 추가
             'category_1', 'category_2', 'category_3',
             'region_1', 'region_2', 'region',
