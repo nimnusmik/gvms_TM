@@ -1,8 +1,5 @@
 export const TEAMS = [
-    { value: 'BATTERY', label: '배터리' },
-    { value: 'MOBILITY', label: '모빌리티' },
-    { value: 'SOLAR', label: '태양광' },
-    { value: 'MACHINE', label: '산업기계' },
+    { value: 'SALES_1', label: '영업 1팀' },
   ];
   
   export const AGENT_STATUS_OPTIONS = [

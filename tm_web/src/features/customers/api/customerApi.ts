@@ -56,10 +56,16 @@ export const customerApi = {
     const { data } = await api.post('/customers/bulk-unassign/', { ids });
     return data;
   },
-  // ✨ 5. [추가] DB 초기화 (이 부분이 빠져있었습니다!)
+  // DB 초기화 (이 부분이 빠져있었습니다!)
   resetDB: async () => {
     // 백엔드 URL: DELETE /api/v1/customers/reset-db/
     const response = await api.delete('/customers/reset-db/');
     return response.data;
+  },
+
+  // 자동 배정 실행 (관리자용)
+  runAutoAssign: async () => {
+    const { data } = await api.post("/customers/run-daily-assign/");
+    return data;
   },
 };

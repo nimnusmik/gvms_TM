@@ -1,2 +1,94 @@
 /* src/index.css */
 @import "tailwindcss";
+
+/* Customer toolbar filter select styling */
+.customer-filter-select {
+  padding: 8px 16px;
+  border-radius: 8px;
+  min-width: 220px;
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  font-size: 0.875rem;
+  height: 40px;
+  color: #111827;
+  field-sizing: content;
+}
+
+.customer-filter-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4);
+  border-color: #3b82f6;
+}
+
+.customer-filter-select,
+.customer-filter-select::picker(select) {
+  field-sizing: content;
+  appearance: base-select;
+}
+
+/* Style the dropdown surface via the select picker */
+.customer-filter-select::picker(select) {
+  margin-block: 1rem;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+/* Style the selected content element when supported */
+.customer-filter-select selectedcontent {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Option layout and animation */
+.customer-filter-select option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-block: 8px;
+  padding-inline: 12px 16px;
+  transition: opacity 0.25s ease, translate 0.5s ease;
+  transition-delay: calc(0.2s * (sibling-index() - 2));
+}
+
+.customer-filter-select option {
+  @starting-style {
+    opacity: 0;
+    translate: 30px 0;
+  }
+}
+
+/* Hide the default checkmark */
+.customer-filter-select option::checkmark {
+  display: none;
+}
+
+/* Do not animate the placeholder option */
+.customer-filter-select option:first-of-type {
+  transition: none;
+}
+
+.customer-filter-select option:first-of-type {
+  @starting-style {
+    opacity: 0;
+    translate: 0 0;
+  }
+}
+
+/* Remove transition if an option has been selected */
+.customer-filter-select:has(option:checked:not(:disabled)) option {
+  transition: none;
+}
+
+/* Highlight on hover */
+.customer-filter-select option:hover,
+.customer-filter-select option:focus,
+.customer-filter-select option:checked {
+  background-color: #f3f4f6;
+}
+
+.customer-filter-select option:not(:disabled):checked:after {
+  content: "✓";
+  margin-left: auto;
+}

@@ -8,12 +8,16 @@ import { CustomerTable } from "../components/CustomerTable";
 import { CustomerBulkActionBar } from "../components/CustomerBulkActionBar";
 import { useCustomerList } from "../hooks/useCustomerList";
 import { customerApi } from "../api/customerApi";
+import { agentApi } from "@/features/agents/api/agentApi";
+import type { Agent } from "@/features/agents/types";
 
 export default function CustomerManagementPage() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [isUploadProcessing, setIsUploadProcessing] = useState(false);
 
   const {
     customers,
@@ -26,6 +30,8 @@ export default function CustomerManagementPage() {
     activeSearch,
     statusFilter,
     setStatusFilter,
+    agentFilter,
+    setAgentFilter,
     applySearch,
     resetFilters,
     reloadPage,
@@ -35,15 +41,29 @@ export default function CustomerManagementPage() {
   // 페이지나 필터가 바뀌면 선택 초기화
   useEffect(() => {
     setSelectedIds([]);
-  }, [page, activeSearch, statusFilter]);
+  }, [page, activeSearch, statusFilter, agentFilter]);
+
+  // 담당자 목록 로딩 (필터용)
+  useEffect(() => {
+    const fetchAgents = async () => {
+      try {
+        const data = await agentApi.getAgents();
+        setAgents(data);
+      } catch (error) {
+        console.error(error);
+        toast.error("담당자 목록 로딩 실패");
+      }
+    };
+    fetchAgents();
+  }, []);
 
   // 1. 엑셀 업로드 핸들러
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("파일 크기는 10MB를 넘을 수 없습니다.");
+    if (file.size > 70 * 1024 * 1024) {
+      toast.error("파일 크기는 70MB를 넘을 수 없습니다.");
       return;
     }
     
@@ -56,6 +76,7 @@ export default function CustomerManagementPage() {
     try {
       const response = await customerApi.uploadExcel(file);
       toast.success(response.message || "업로드가 완료되었습니다!");
+      setIsUploadProcessing(true);
       reloadFirstPage();
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || "업로드 실패: 파일 형식을 확인해주세요.";
@@ -130,7 +151,16 @@ export default function CustomerManagementPage() {
         onSearchKeyDown={handleSearchKeyDown}
         statusFilter={statusFilter}
         onStatusChange={setStatusFilter}
-        showReset={Boolean(activeSearch) || statusFilter !== "ALL"}
+        agentFilter={agentFilter}
+        onAgentChange={setAgentFilter}
+        agents={agents}
+        uploadProcessing={isUploadProcessing}
+        onDismissUploadProcessing={() => setIsUploadProcessing(false)}
+        showReset={
+          Boolean(activeSearch) ||
+          statusFilter !== "ALL" ||
+          agentFilter !== "ALL"
+        }
         onReset={resetFilters}
       />
 

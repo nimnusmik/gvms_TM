@@ -40,7 +40,11 @@ export function CustomerResetDialog({ onSuccess }: CustomerResetDialogProps) {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive" size="sm" className="gap-2">
+        <Button
+          variant="destructive"
+          size="sm"
+          className="gap-2 px-4 shadow-sm bg-red-600 hover:bg-red-700 text-white font-bold"
+        >
           <RotateCcw className="w-4 h-4" />
           DB 초기화
         </Button>

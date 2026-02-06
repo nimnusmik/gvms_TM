@@ -2,10 +2,11 @@
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { RefreshCcw, Search, UploadCloud, X } from "lucide-react";
+import { RefreshCcw, Search, UploadCloud, X, Loader2, Info } from "lucide-react";
 import type { ChangeEvent, KeyboardEvent, RefObject } from "react";
 
 import { CustomerResetDialog } from "./CustomerResetDialog";
+import type { Agent } from "@/features/agents/types";
 
 interface CustomerToolbarProps {
   totalCount: number;
@@ -19,6 +20,11 @@ interface CustomerToolbarProps {
   onSearchKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
   statusFilter: string;
   onStatusChange: (value: string) => void;
+  agentFilter: string;
+  onAgentChange: (value: string) => void;
+  agents: Agent[];
+  uploadProcessing: boolean;
+  onDismissUploadProcessing: () => void;
   showReset: boolean;
   onReset: () => void;
 }
@@ -35,6 +41,11 @@ export function CustomerToolbar({
   onSearchKeyDown,
   statusFilter,
   onStatusChange,
+  agentFilter,
+  onAgentChange,
+  agents,
+  uploadProcessing,
+  onDismissUploadProcessing,
   showReset,
   onReset,
 }: CustomerToolbarProps) {
@@ -65,9 +76,10 @@ export function CustomerToolbar({
 
           <Button
             variant="default"
+            size="sm"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className="shadow-sm"
+            className="shadow-sm gap-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
           >
             <UploadCloud className="mr-2 h-4 w-4" />
             {isUploading ? "업로드 중..." : "엑셀 업로드"}
@@ -99,7 +111,7 @@ export function CustomerToolbar({
         </div>
 
         <select
-          className="h-10 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="customer-filter-select"
           value={statusFilter}
           onChange={(e) => onStatusChange(e.target.value)}
         >
@@ -108,6 +120,19 @@ export function CustomerToolbar({
           <option value="ASSIGNED">배정됨 (ASSIGNED)</option>
           <option value="SUCCESS">성공 (SUCCESS)</option>
           <option value="REJECT">거절 (REJECT)</option>
+        </select>
+
+        <select
+          className="customer-filter-select"
+          value={agentFilter}
+          onChange={(e) => onAgentChange(e.target.value)}
+        >
+          <option value="ALL">담당자 전체</option>
+          {agents.map((agent) => (
+            <option key={agent.agent_id} value={String(agent.agent_id)}>
+              {agent.name} ({agent.code})
+            </option>
+          ))}
         </select>
 
         {showReset && (
@@ -121,6 +146,27 @@ export function CustomerToolbar({
           </Button>
         )}
       </div>
+
+      {uploadProcessing && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+          <div className="flex items-center gap-2 text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="font-semibold">대용량 엑셀 처리 중</span>
+            <span className="text-amber-800/80">
+              백그라운드에서 처리 중입니다. 완료 후 새로고침 해주세요.
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDismissUploadProcessing}
+            className="text-amber-900 hover:bg-amber-100"
+            title="알림 닫기"
+          >
+            <Info className="mr-1 h-4 w-4" /> 확인
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

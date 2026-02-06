@@ -32,8 +32,14 @@ build/
 .env
 .env.*
 
+.cursor/
+
 # OS / editor
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+
+# backend/temp 전체 무시
+backend/temp/
+*.xlsx

@@ -14,15 +14,21 @@ export interface Customer {
     phone: string;
     age?: number;
     gender?: string;
-    region?: string;
     status: CustomerStatus;
     assigned_agent?: number; 
-    agent_name?: string;     
-    created_at: string;
     memo?: string;
 
-    team: string | null;          
-    team_display: string | null;  
+      // 👇 [신규] 백엔드 모델에 추가한 필드들
+    category_1?: string; // 분야1 (업종 등)
+    category_2?: string; // 분야2 (주생산품 등)
+    category_3?: string; // 분야3
+    region?: string;     // 지역 통합 (지역1 + 지역2)
+    
+    // 👇 [신규] Serializer에서 계산해서 주는 필드
+    agent_name: string;  // 담당자 이름 (없으면 '-')
+    call_count: number;  // 전화 횟수
+    
+    created_at: string;
   }
 
 export interface CustomerParams {
