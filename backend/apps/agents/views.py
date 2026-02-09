@@ -18,7 +18,6 @@ from datetime import timedelta
 from apps.customers.services import run_auto_assign_logic, run_auto_assign_batch_all
 from apps.sales.models import SalesAssignment
 from apps.sales.serializers import SalesAssignmentSerializer
-
 from apps.calls.models import CallLog
 
 User = get_user_model()
@@ -171,42 +170,46 @@ class AgentViewSet(viewsets.ModelViewSet):
         today = timezone.localtime().date()
         team_filter = request.query_params.get('team')
 
-        # 1. [상담원 리스트] + [오늘의 성과] 한 방에 조회 (annotate 사용)
+        # 1. 상담원 리스트
         agents = Agent.objects.all()
         
         if team_filter:
             agents = agents.filter(team=team_filter)
 
-        # 🚀 쿼리 최적화: CallLog 테이블을 조인해서 통계 계산
-        agent_stats = agents.annotate(
-            # 오늘 총 콜 수
-            today_total=Count('call_history', filter=Q(call_history__created_at__date=today)),
-            
-            # 오늘 성공(동의) 수
-            today_success=Count('call_history', filter=Q(
-                call_history__created_at__date=today, 
-                call_history__result='SUCCESS'
-            )),
-            
-            # 오늘 총 통화 시간 (초 단위 합계, 없으면 0)
-            today_duration=Coalesce(Sum('call_history__duration', filter=Q(call_history__created_at__date=today)), 0)
-        ).values(
-            'agent_id', 'user__name', 'team', 'status', 'daily_cap', 
-            'today_total', 'today_success', 'today_duration', 'assigned_phone'
+        agent_stats = agents.values(
+            'agent_id', 'user__name', 'team', 'status', 'daily_cap', 'assigned_phone'
         )
+
+        call_stats = CallLog.objects.filter(
+            call_start__date=today
+        ).values(
+            'agent_id'
+        ).annotate(
+            today_total=Count('id'),
+            today_success=Count('id', filter=Q(result_type='SUCCESS')),
+            today_duration=Coalesce(Sum('call_duration'), 0)
+        )
+
+        call_stats_map = {row['agent_id']: row for row in call_stats}
 
         # 2. [데이터 가공] 프론트엔드 포맷에 맞게 변환
         cards_data = []
         table_data = []
 
         for stat in agent_stats:
+            call_stat = call_stats_map.get(stat['agent_id'], {
+                'today_total': 0,
+                'today_success': 0,
+                'today_duration': 0,
+            })
+
             # 성공률 계산 (0으로 나누기 방지)
             success_rate = 0
-            if stat['today_total'] > 0:
-                success_rate = round((stat['today_success'] / stat['today_total']) * 100, 1)
+            if call_stat['today_total'] > 0:
+                success_rate = round((call_stat['today_success'] / call_stat['today_total']) * 100, 1)
 
             # 초 -> MM:SS 형식 변환
-            duration_str = self._format_duration(stat['today_duration'])
+            duration_str = self._format_duration(call_stat['today_duration'])
 
             # (A) 하단 카드용 데이터
             cards_data.append({
@@ -214,7 +217,7 @@ class AgentViewSet(viewsets.ModelViewSet):
                 'name': stat['user__name'],
                 'team': stat['team'], # 혹은 get_team_display() 필요시 별도 처리
                 'status': stat['status'],
-                'todayCalls': stat['today_total'],
+                'todayCalls': call_stat['today_total'],
                 'successRate': success_rate,
                 'dailyGoal': stat['daily_cap'],
                 'totalCallTime': duration_str,
@@ -225,21 +228,21 @@ class AgentViewSet(viewsets.ModelViewSet):
             table_data.append({
                 'name': stat['user__name'],
                 'successRate': success_rate,
-                'avgCallTime': self._calculate_avg_time(stat['today_duration'], stat['today_total']),
-                'contractCount': stat['today_success'] # 일단 성공 콜 수를 계약 수로 간주
+                'avgCallTime': self._calculate_avg_time(call_stat['today_duration'], call_stat['today_total']),
+                'contractCount': call_stat['today_success'] # 일단 성공 콜 수를 계약 수로 간주
             })
 
         # 3. [차트 데이터] 최근 7일간 추이
         seven_days_ago = today - timedelta(days=6)
         
         daily_trends = CallLog.objects.filter(
-            created_at__date__gte=seven_days_ago
+            call_start__date__gte=seven_days_ago
         ).annotate(
-            date=TruncDate('created_at')
+            date=TruncDate('call_start')
         ).values('date').annotate(
             totalCalls=Count('id'),
-            successCount=Count('id', filter=Q(result='SUCCESS')),
-            failCount=Count('id', filter=Q(result='REJECT'))
+            successCount=Count('id', filter=Q(result_type='SUCCESS')),
+            failCount=Count('id', filter=Q(result_type='REJECT'))
         ).order_by('date')
 
         chart_data = []
