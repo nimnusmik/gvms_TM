@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import SalesAssignment, CallLog, AssignmentLog
+from .models import SalesAssignment, AssignmentLog
 
 # [1] 영업 배정 기록 관리
 @admin.register(SalesAssignment)
@@ -11,9 +11,6 @@ class SalesAssignmentAdmin(admin.ModelAdmin):
     raw_id_fields = ('customer', 'agent')
 
 # [2] 통화 기록 관리
-@admin.register(CallLog)
-class CallLogAdmin(admin.ModelAdmin):
-    list_display = ('agent', 'call_duration', 'is_billable', 'call_start')
 
 # [3] 자동 배정 로그 관리 (이사 온 코드)
 @admin.register(AssignmentLog)

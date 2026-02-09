@@ -10,12 +10,16 @@ from django.db import IntegrityError
 from django.db import transaction
 from .models import Agent
 from .serializers import AgentSerializer
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum
+from django.db.models.functions import Coalesce, TruncDate
+from django.utils import timezone
+from datetime import timedelta
 
 from apps.customers.services import run_auto_assign_logic, run_auto_assign_batch_all
 from apps.sales.models import SalesAssignment
 from apps.sales.serializers import SalesAssignmentSerializer
 
+from apps.calls.models import CallLog
 
 User = get_user_model()
 
@@ -157,59 +161,118 @@ class AgentViewSet(viewsets.ModelViewSet):
             "released_count": released_count
         })
 
-    # ----------------------------------------------------------------
-    # 🌟 기능 6: 퇴사 처리 (Soft Delete)
-    # POST /api/v1/agents/{id}/resign/
-    # ----------------------------------------------------------------
-    @action(detail=False, methods=['get'], url_path='dashboard_stats')
+    
+    @action(detail=False, methods=['get'])
     def dashboard_stats(self, request):
-        # 1. [상담원] 통계
-        total_agents = Agent.objects.count()
-        active_agents = Agent.objects.exclude(status='OFFLINE').count()
+        """
+        📊 대시보드용 통합 통계 API
+        - 요청: GET /api/v1/agents/dashboard_stats/?team=SALES_TM
+        """
+        today = timezone.localtime().date()
+        team_filter = request.query_params.get('team')
 
-        # 2. [고객] 통계
-        total_customers = SalesAssignment.objects.count()
-        success_customers = SalesAssignment.objects.filter(status='SUCCESS').count()
-
-
-        # 3. 성공률
-        if total_customers > 0:
-            success_rate = (success_customers / total_customers) * 100
-        else:
-            success_rate = 0
-
-        data = {
-            "total_customers": total_customers,
-            "active_agents": active_agents,
-            "total_agents": total_agents,
-            "success_rate": round(success_rate, 1)
-        }
+        # 1. [상담원 리스트] + [오늘의 성과] 한 방에 조회 (annotate 사용)
+        agents = Agent.objects.all()
         
-        return Response(data)
+        if team_filter:
+            agents = agents.filter(team=team_filter)
 
-
-    def perform_create(self, serializer):
-        try:
-            # 1. 상담원 저장 시도
-            agent = serializer.save()
+        # 🚀 쿼리 최적화: CallLog 테이블을 조인해서 통계 계산
+        agent_stats = agents.annotate(
+            # 오늘 총 콜 수
+            today_total=Count('call_history', filter=Q(call_history__created_at__date=today)),
             
-            # 2. [시나리오 A] 저장 성공 시 자동 배정 로직 실행
-            if agent.is_auto_assign:
-                from apps.customers.services import run_auto_assign_logic
-                run_auto_assign_logic(agent)
-                
-        except IntegrityError:
-            # 🚨 이미 존재하는 계정일 경우 발생하는 DB 에러를 잡아서
-            # 프론트엔드에게 "400 Bad Request"로 친절하게 알려줍니다.
-            raise ValidationError({"detail": "이미 상담원으로 등록된 계정입니다. (중복 등록 불가)"})
+            # 오늘 성공(동의) 수
+            today_success=Count('call_history', filter=Q(
+                call_history__created_at__date=today, 
+                call_history__result='SUCCESS'
+            )),
+            
+            # 오늘 총 통화 시간 (초 단위 합계, 없으면 0)
+            today_duration=Coalesce(Sum('call_history__duration', filter=Q(call_history__created_at__date=today)), 0)
+        ).values(
+            'agent_id', 'user__name', 'team', 'status', 'daily_cap', 
+            'today_total', 'today_success', 'today_duration', 'assigned_phone'
+        )
 
-    def perform_update(self, serializer):
-        # 수정 시에도(예: 팀 변경, Cap 증가 등) 배정 로직을 돌릴지 결정
-        agent = serializer.save()
+        # 2. [데이터 가공] 프론트엔드 포맷에 맞게 변환
+        cards_data = []
+        table_data = []
+
+        for stat in agent_stats:
+            # 성공률 계산 (0으로 나누기 방지)
+            success_rate = 0
+            if stat['today_total'] > 0:
+                success_rate = round((stat['today_success'] / stat['today_total']) * 100, 1)
+
+            # 초 -> MM:SS 형식 변환
+            duration_str = self._format_duration(stat['today_duration'])
+
+            # (A) 하단 카드용 데이터
+            cards_data.append({
+                'id': str(stat['agent_id']),
+                'name': stat['user__name'],
+                'team': stat['team'], # 혹은 get_team_display() 필요시 별도 처리
+                'status': stat['status'],
+                'todayCalls': stat['today_total'],
+                'successRate': success_rate,
+                'dailyGoal': stat['daily_cap'],
+                'totalCallTime': duration_str,
+                'avatar': None # 프로필 이미지 URL이 있다면 추가
+            })
+
+            # (B) 좌상단 테이블용 데이터
+            table_data.append({
+                'name': stat['user__name'],
+                'successRate': success_rate,
+                'avgCallTime': self._calculate_avg_time(stat['today_duration'], stat['today_total']),
+                'contractCount': stat['today_success'] # 일단 성공 콜 수를 계약 수로 간주
+            })
+
+        # 3. [차트 데이터] 최근 7일간 추이
+        seven_days_ago = today - timedelta(days=6)
         
-        # 예: 배정 기능이 꺼져있다가 켜진 경우 즉시 배정
-        if agent.is_auto_assign:
-            run_auto_assign_logic(agent)
+        daily_trends = CallLog.objects.filter(
+            created_at__date__gte=seven_days_ago
+        ).annotate(
+            date=TruncDate('created_at')
+        ).values('date').annotate(
+            totalCalls=Count('id'),
+            successCount=Count('id', filter=Q(result='SUCCESS')),
+            failCount=Count('id', filter=Q(result='REJECT'))
+        ).order_by('date')
+
+        chart_data = []
+        for trend in daily_trends:
+            chart_data.append({
+                'date': trend['date'].strftime('%m/%d'), # 02/09 형식
+                'totalCalls': trend['totalCalls'],
+                'successCount': trend['successCount'],
+                'failCount': trend['failCount']
+            })
+
+        return Response({
+            "cards": cards_data,
+            "table": table_data,
+            "chart": chart_data
+        })
+
+    def _format_duration(self, seconds):
+        """초 -> MM:SS 변환 헬퍼"""
+        if not seconds:
+            return "00:00"
+        m, s = divmod(seconds, 60)
+        h, m = divmod(m, 60)
+        if h > 0:
+            return f"{h:02d}:{m:02d}:{s:02d}"
+        return f"{m:02d}:{s:02d}"
+
+    def _calculate_avg_time(self, total_seconds, count):
+        """평균 통화 시간 계산"""
+        if count == 0:
+            return "00:00"
+        avg_seconds = int(total_seconds / count)
+        return self._format_duration(avg_seconds)
 
     # POST /api/v1/agents/run_daily_assign/
     @action(detail=False, methods=['post'], url_path='run-daily-assign')

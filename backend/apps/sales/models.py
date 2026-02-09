@@ -1,3 +1,4 @@
+# backend/apps/sales/models.py
 from django.db import models
 from apps.customers.models import Customer
 from apps.agents.models import Agent
@@ -53,22 +54,7 @@ class SalesAssignment(models.Model):
         ]
 
 # [2] 통화 로그 (정산용)
-class CallLog(models.Model):
-    assignment = models.ForeignKey(SalesAssignment, on_delete=models.CASCADE, related_name='call_logs')
-    agent = models.ForeignKey(Agent, on_delete=models.CASCADE)
-    
-    call_start = models.DateTimeField(auto_now_add=True)
-    call_duration = models.IntegerField(default=0, verbose_name="통화 시간(초)")
-    result_type = models.CharField(max_length=50, verbose_name="통신사 결과값")
-    
-    # 💰 정산 대상 여부 (800원 줄까 말까)
-    is_billable = models.BooleanField(default=True)
-    
-    # 🎙️ 녹음 파일
-    recording_file = models.FileField(upload_to='recordings/%Y/%m/', null=True, blank=True)
-
-    class Meta:
-        db_table = 'tm_call_logs'
+# Call 모델로 이사 감
 
 # [3] 자동 배정 시스템 로그 (sales로 이동됨)
 class AssignmentLog(models.Model):

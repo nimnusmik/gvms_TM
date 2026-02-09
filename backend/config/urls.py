@@ -18,5 +18,9 @@ urlpatterns = [
 
     # 5. 영업현황
     path('api/v1/sales/', include('apps.sales.urls')), 
+
+    # 6. 상담결과
+    path('api/v1/calls/', include('apps.calls.urls')), 
+
 ]
 

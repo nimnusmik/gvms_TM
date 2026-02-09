@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import SalesAssignment, CallLog
+from .models import SalesAssignment
 from apps.customers.serializers import CustomerSerializer
 from apps.agents.models import Agent
 
@@ -76,9 +76,3 @@ class SalesAssignmentSerializer(serializers.ModelSerializer):
             'assigned_at': secondary.assigned_at,
             'updated_at': secondary.updated_at,
         }
-
-# [2] 통화 기록 (정산용)
-class CallLogSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CallLog
-        fields = '__all__'
