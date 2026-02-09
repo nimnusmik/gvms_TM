@@ -254,7 +254,20 @@ class AgentViewSet(viewsets.ModelViewSet):
                 'failCount': trend['failCount']
             })
 
+        # 4. 상단 통계 카드용 요약
+        total_agents = agents.count()
+        active_agents = agents.exclude(status='OFFLINE').count()
+        total_customers = SalesAssignment.objects.count()
+        success_customers = SalesAssignment.objects.filter(status='SUCCESS').count()
+        today_total_calls = CallLog.objects.filter(call_start__date=today).count()
+        success_rate = round((success_customers / total_customers) * 100, 1) if total_customers > 0 else 0
+
         return Response({
+            "total_customers": total_customers,
+            "active_agents": active_agents,
+            "total_agents": total_agents,
+            "success_rate": success_rate,
+            "today_total_calls": today_total_calls,
             "cards": cards_data,
             "table": table_data,
             "chart": chart_data

@@ -1,4 +1,4 @@
-import { Activity, CheckCircle2, PhoneCall, Users } from "lucide-react";
+import { Activity, CheckCircle2, PhoneCall } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DashboardStats } from "../types";
@@ -15,25 +15,31 @@ interface StatCardProps {
 
 function StatCard({ title, value, description, icon: Icon, color, accent, isLoading }: StatCardProps) {
   return (
-    <Card
-      className="shadow-sm hover:shadow-md transition-shadow duration-200 border-l-4"
-      style={{ borderLeftColor: accent }}
-    >
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {title}
-        </CardTitle>
-        <Icon className={`h-4 w-4 ${color}`} />
+    <Card className="relative overflow-hidden border border-slate-200/70 bg-white/90 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+      <div className="absolute inset-x-0 top-0 h-1" style={{ background: accent }} />
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-1">
+        <div className="flex flex-col gap-1">
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            {title}
+          </CardTitle>
+          <div className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${color} bg-slate-50`}>
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
+            Live
+          </div>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
+          <Icon className={`h-4 w-4 ${color}`} />
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold text-gray-900">
+        <div className="text-2xl font-bold text-slate-900">
           {isLoading ? (
-            <span className="inline-block w-16 h-8 bg-gray-100 animate-pulse rounded" />
+            <span className="inline-block w-24 h-8 bg-slate-100 animate-pulse rounded" />
           ) : (
             value
           )}
         </div>
-        <p className="text-xs text-muted-foreground mt-1">{description}</p>
+        <p className="text-xs text-slate-500 mt-2">{description}</p>
       </CardContent>
     </Card>
   );
@@ -49,12 +55,13 @@ export function DashboardStatGrid({ stats, isLoading }: DashboardStatGridProps) 
   const totalAgents = stats?.total_agents || 1;
   const totalCustomers = stats?.total_customers || 0;
   const successRate = stats?.success_rate || 0;
+  const todayTotalCalls = stats?.today_total_calls || 0;
 
   const cards: StatCardProps[] = [
     {
-      title: "현재 접속 상담원",
-      value: `${activeAgents.toLocaleString()}명`,
-      description: `전체 인원의 ${Math.round((activeAgents / totalAgents) * 100)}%`,
+      title: "현재 접속 상담원/총 등록 사원",
+      value: `${activeAgents.toLocaleString()} / ${totalAgents.toLocaleString()}명`,
+      description: `가동률 ${Math.round((activeAgents / totalAgents) * 100)}%`,
       icon: Activity,
       color: "text-green-600",
       accent: "#16a34a",
@@ -79,12 +86,12 @@ export function DashboardStatGrid({ stats, isLoading }: DashboardStatGridProps) 
       isLoading,
     },
     {
-      title: "총 등록 사원",
-      value: `${(stats?.total_agents || 0).toLocaleString()}명`,
-      description: "현재 등록된 상담원 수",
-      icon: Users,
-      color: "text-slate-600",
-      accent: "#475569",
+      title: "오늘 콜 수(총)",
+      value: `${todayTotalCalls.toLocaleString()}건`,
+      description: "오늘 발생한 전체 콜 수",
+      icon: PhoneCall,
+      color: "text-indigo-600",
+      accent: "#4f46e5",
       isLoading,
     },
   ];

@@ -9,6 +9,7 @@ export interface DashboardStats {
   active_agents: number;
   total_agents: number;
   success_rate: number;
+  today_total_calls: number;
 }
 
 export interface PaginatedResponse<T> {

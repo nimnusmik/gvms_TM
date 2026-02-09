@@ -31,16 +31,16 @@ export function DashboardNoticeCard() {
 
   return (
     // Grid 시스템에서 7칸 중 3칸을 차지하도록 설정 (CallTrendCard가 4칸 차지 예상)
-    <Card className="col-span-full lg:col-span-3 h-full">
+    <Card className="col-span-full lg:col-span-3 h-full border border-slate-200/70 bg-white/90 shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <div className="flex items-center gap-2">
-          <Megaphone className="w-5 h-5 text-blue-600" />
-          <CardTitle className="text-base font-bold text-gray-900">
+          <Megaphone className="w-5 h-5 text-indigo-500" />
+          <CardTitle className="text-base font-bold text-slate-900">
             시스템 공지사항
           </CardTitle>
         </div>
         {/* 전체보기 링크 */}
-        <Button variant="ghost" size="sm" className="h-8 text-xs text-gray-500" asChild>
+        <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-500 hover:text-indigo-600" asChild>
           <Link to="/dashboard/notices">
             전체보기 <ChevronRight className="ml-1 w-3 h-3" />
           </Link>
@@ -49,20 +49,20 @@ export function DashboardNoticeCard() {
 
       <CardContent>
         {isLoading ? (
-          <div className="py-8 text-center text-sm text-gray-400">
-            로딩 중...
+          <div className="py-10 text-center text-sm text-slate-400">
+            공지사항을 불러오는 중...
           </div>
         ) : notices.length === 0 ? (
-          <div className="py-8 text-center flex flex-col items-center justify-center text-gray-400 gap-2">
-            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
-              <Megaphone className="w-5 h-5 text-gray-300" />
+          <div className="py-10 text-center flex flex-col items-center justify-center text-slate-400 gap-2">
+            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
+              <Megaphone className="w-5 h-5 text-slate-300" />
             </div>
             <p className="text-sm">등록된 공지사항이 없습니다.</p>
           </div>
         ) : (
           <div className="space-y-4">
             {notices.map((notice) => (
-              <div key={notice.id} className="group flex items-start gap-3 pb-3 border-b last:border-0 last:pb-0">
+              <div key={notice.id} className="group flex items-start gap-3 pb-3 border-b border-slate-100 last:border-0 last:pb-0">
                 {/* 상태 표시 점 (중요: 빨간 펄스 / 일반: 파란 점) */}
                 <div className="mt-1.5 shrink-0">
                   {notice.is_important ? (
@@ -71,23 +71,23 @@ export function DashboardNoticeCard() {
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
                     </div>
                   ) : (
-                    <div className="h-2.5 w-2.5 rounded-full bg-blue-500/20 ring-1 ring-blue-500" />
+                    <div className="h-2.5 w-2.5 rounded-full bg-indigo-500/20 ring-1 ring-indigo-500" />
                   )}
                 </div>
 
                 {/* 제목 및 날짜 */}
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start gap-2">
-                  <Link 
+                    <Link 
                       to="/dashboard/notices"
-                      className="text-sm font-medium text-gray-700 hover:text-blue-600 truncate transition-colors"
+                      className="text-sm font-medium text-slate-700 hover:text-indigo-600 truncate transition-colors"
                     >
                       {notice.title}
                     </Link>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                  <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
                     {new Date(notice.created_at).toLocaleDateString()}
-                    <span className="text-gray-300">|</span>
+                    <span className="text-slate-300">|</span>
                     {notice.author_name}
                   </p>
                 </div>
