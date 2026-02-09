@@ -60,6 +60,11 @@ export const customerApi = {
     return data;
   },
 
+  bulkDelete: async (ids: number[]) => {
+    const { data } = await api.post('/sales/bulk-delete/', { ids });
+    return data;
+  },
+
   assignSecondary: async (assignmentId: number, agentId: string) => {
     const { data } = await api.post(`/sales/${assignmentId}/assign-secondary/`, { agent_id: agentId });
     return data;

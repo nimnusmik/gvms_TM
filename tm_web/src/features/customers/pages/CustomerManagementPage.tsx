@@ -142,6 +142,21 @@ export default function CustomerManagementPage() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (!confirm(`선택한 ${selectedIds.length}건을 삭제하시겠습니까?\n2차 배정이 있으면 함께 삭제됩니다.`)) {
+      return;
+    }
+
+    try {
+      await customerApi.bulkDelete(selectedIds);
+      toast.success("선택된 항목이 삭제되었습니다.");
+      setSelectedIds([]);
+      reloadPage();
+    } catch (error) {
+      toast.error("삭제 중 오류가 발생했습니다.");
+    }
+  };
+
   const selectedAssignments = customers.filter((assignment) => selectedIds.includes(assignment.id));
   const secondaryEligible = selectedAssignments.filter(
     (assignment) => assignment.status === "SUCCESS" && !assignment.secondary_assignment
@@ -226,6 +241,7 @@ export default function CustomerManagementPage() {
           selectedCount={selectedIds.length}
           onAssign={() => setIsModalOpen(true)}
           onUnassign={handleBulkUnassign} // 👈 여기가 핵심! 연결되었습니다.
+          onDelete={handleBulkDelete}
           secondaryCount={secondaryEligible.length}
           onAssignSecondary={() => setIsSecondaryModalOpen(true)}
         />

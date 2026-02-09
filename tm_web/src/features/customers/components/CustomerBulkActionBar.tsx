@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { XCircle, UserPlus } from "lucide-react";
+import { Trash2, XCircle, UserPlus } from "lucide-react";
 
 interface CustomerBulkActionBarProps {
   selectedCount: number;
   onAssign: () => void;
   onUnassign: () => void;
+  onDelete: () => void;
   secondaryCount: number;
   onAssignSecondary: () => void;
 }
@@ -13,6 +14,7 @@ export function CustomerBulkActionBar({
   selectedCount,
   onAssign,
   onUnassign,
+  onDelete,
   secondaryCount,
   onAssignSecondary,
 }: CustomerBulkActionBarProps) {
@@ -49,6 +51,16 @@ export function CustomerBulkActionBar({
         >
           <XCircle className="w-4 h-4 mr-2" />
           배정 취소
+        </Button>
+
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={onDelete}
+          className="bg-red-600 hover:bg-red-700 text-white"
+        >
+          <Trash2 className="w-4 h-4 mr-2" />
+          선택 삭제
         </Button>
 
         {/* 기존 배정 버튼 */}

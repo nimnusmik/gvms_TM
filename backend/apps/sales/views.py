@@ -122,6 +122,22 @@ class SalesAssignmentViewSet(viewsets.ModelViewSet):
             "updated_count": updated_count
         })
 
+    @action(detail=False, methods=['post'], url_path='bulk-delete')
+    def bulk_delete(self, request):
+        ids = request.data.get('ids', [])
+        if not ids:
+            return Response({"detail": "삭제할 데이터를 선택해주세요."}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            child_deleted = SalesAssignment.objects.filter(parent_assignment_id__in=ids).delete()[0]
+            parent_deleted = SalesAssignment.objects.filter(id__in=ids).delete()[0]
+
+        return Response({
+            "message": f"✅ {parent_deleted}건 삭제, 2차 {child_deleted}건 삭제 완료",
+            "deleted_count": parent_deleted,
+            "deleted_secondary_count": child_deleted
+        })
+
     @action(detail=False, methods=['post'], url_path='run-daily-assign')
     def run_daily_assign(self, request):
         trigger_user = request.user.name if hasattr(request.user, 'name') else request.user.username
