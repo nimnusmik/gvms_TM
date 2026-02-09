@@ -18,7 +18,8 @@ class AgentStatus(models.TextChoices):
     RESIGNED = 'RESIGNED', '퇴사'
 
 class Team(models.TextChoices):
-    SALES_1 = 'SALES_1', '영업 1팀'
+    SALES_TM = 'SALES_TM', '1차 TM팀'        # 👈 1차
+    SALES_MAIN = 'SALES_MAIN', '2차 본영업팀'  # 👈 2차
 
 # 2. 모델 정의
 class Agent(models.Model):

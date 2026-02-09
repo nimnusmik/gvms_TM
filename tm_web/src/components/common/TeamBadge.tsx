@@ -2,10 +2,14 @@ import { Badge } from "@/components/ui/badge";
 
 // 팀별 라벨 및 색상 스타일 정의 (Tailwind CSS)
 const TEAM_CONFIG: Record<string, { label: string; className: string }> = {
-  SALES_1: {
-    label: "영업 1팀",
+  SALES_TM: {
+    label: "1차 TM팀",
     className: "text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100"
   },
+  SALES_MAIN: {
+    label: "2차 본영업팀",
+    className: "text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100"
+  }
 };
 
 export function TeamBadge({ team }: { team: string | null }) {

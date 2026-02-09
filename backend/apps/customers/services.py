@@ -4,7 +4,7 @@ import logging
 from django.db import transaction
 from django.utils import timezone
 from django.db.models import Count
-from .models import Customer
+from apps.sales.models import SalesAssignment
 from apps.agents.models import Agent
 
 logger = logging.getLogger(__name__)
@@ -49,10 +49,11 @@ def run_auto_assign_logic(agent: Agent) -> int:
 
 
 def _get_current_holding_count(agent: Agent) -> int:
-    """현재 상담원이 보유한 고객 수 (ASSIGNED 상태만)"""
-    return Customer.objects.filter(
-        assigned_agent=agent,
-        status=Customer.Status.ASSIGNED
+    """현재 상담원이 보유한 리드 수 (ASSIGNED 상태만)"""
+    return SalesAssignment.objects.filter(
+        agent=agent,
+        stage=SalesAssignment.Stage.FIRST,
+        status=SalesAssignment.Status.ASSIGNED
     ).count()
 
 
@@ -61,19 +62,20 @@ def _get_candidate_ids(agent: Agent, needed_count: int) -> list[int]:
     배정 가능한 고객 ID 목록 조회 (Locking 적용)
     select_for_update(): 내가 가져가는 동안 다른 프로세스가 건드리지 못하게 잠금
     """
-    candidates = Customer.objects.select_for_update(skip_locked=True).filter(
-        assigned_agent__isnull=True,  # 담당자 없음 (미배정)
-        status=Customer.Status.NEW     # 신규 상태
-    ).order_by('created_at')[:needed_count]  # 오래된 순으로, 필요한 만큼만
+    candidates = SalesAssignment.objects.select_for_update(skip_locked=True).filter(
+        agent__isnull=True,  # 담당자 없음 (미배정)
+        stage=SalesAssignment.Stage.FIRST,
+        status=SalesAssignment.Status.NEW
+    ).order_by('assigned_at')[:needed_count]  # 오래된 순으로, 필요한 만큼만
     
     return [c.id for c in candidates]
 
 
 def _assign_customers_to_agent(agent: Agent, candidate_ids: list[int]) -> int:
-    """고객들을 상담원에게 일괄 배정 (Bulk Update)"""
-    return Customer.objects.filter(id__in=candidate_ids).update(
-        assigned_agent=agent,
-        status=Customer.Status.ASSIGNED,
+    """리드들을 상담원에게 일괄 배정 (Bulk Update)"""
+    return SalesAssignment.objects.filter(id__in=candidate_ids).update(
+        agent=agent,
+        status=SalesAssignment.Status.ASSIGNED,
         assigned_at=timezone.now()
     )
 
@@ -88,11 +90,13 @@ def run_auto_assign_batch_all(agents: list[Agent]) -> dict[int, int]:
 
     # 현재 보유량을 한 번에 계산
     holding_counts = {
-        row["assigned_agent"]: row["count"]
-        for row in Customer.objects.filter(
-            assigned_agent__in=agents, status=Customer.Status.ASSIGNED
+        row["agent"]: row["count"]
+        for row in SalesAssignment.objects.filter(
+            agent__in=agents,
+            stage=SalesAssignment.Stage.FIRST,
+            status=SalesAssignment.Status.ASSIGNED
         )
-        .values("assigned_agent")
+        .values("agent")
         .annotate(count=Count("id"))
     }
 
@@ -114,12 +118,13 @@ def run_auto_assign_batch_all(agents: list[Agent]) -> dict[int, int]:
     # 전체 풀 기준으로 한 번에 후보를 잠금
     with transaction.atomic():
         candidates = list(
-            Customer.objects.select_for_update(skip_locked=True)
+            SalesAssignment.objects.select_for_update(skip_locked=True)
             .filter(
-                assigned_agent__isnull=True,
-                status=Customer.Status.NEW,
+                agent__isnull=True,
+                stage=SalesAssignment.Stage.FIRST,
+                status=SalesAssignment.Status.NEW,
             )
-            .order_by("created_at")[:total_needed]
+            .order_by("assigned_at")[:total_needed]
         )
 
         if not candidates:
@@ -147,9 +152,9 @@ def run_auto_assign_batch_all(agents: list[Agent]) -> dict[int, int]:
             ids = assigned_ids_by_agent.get(agent.agent_id, [])
             if not ids:
                 continue
-            updated = Customer.objects.filter(id__in=ids).update(
-                assigned_agent=agent,
-                status=Customer.Status.ASSIGNED,
+            updated = SalesAssignment.objects.filter(id__in=ids).update(
+                agent=agent,
+                status=SalesAssignment.Status.ASSIGNED,
                 assigned_at=now,
             )
             assigned_by_agent[agent.agent_id] = updated

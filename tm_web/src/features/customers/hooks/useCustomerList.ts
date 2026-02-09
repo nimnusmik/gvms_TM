@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { customerApi } from "../api/customerApi";
-import type { Customer } from "../types";
+import type { SalesAssignment } from "../types";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 50;
 
 export function useCustomerList() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customers, setCustomers] = useState<SalesAssignment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -28,8 +29,9 @@ export function useCustomerList() {
         });
 
         setCustomers(data.results);
-        const totalCount = data.count || 0;
-        setTotalPages(Math.ceil(totalCount / PAGE_SIZE) || 1);
+        const count = data.count || 0;
+        setTotalCount(count);
+        setTotalPages(Math.ceil(count / PAGE_SIZE) || 1);
       } catch (error) {
         console.error("데이터 로딩 실패:", error);
         toast.error("데이터 로딩 실패");
@@ -83,6 +85,7 @@ export function useCustomerList() {
     page,
     setPage,
     totalPages,
+    totalCount,
     searchTerm,
     setSearchTerm,
     activeSearch,

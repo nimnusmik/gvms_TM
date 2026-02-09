@@ -1,7 +1,6 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
 
@@ -9,11 +8,13 @@ from django.contrib.auth import get_user_model
 from django.db import IntegrityError 
 
 from django.db import transaction
-from .models import Agent, AgentStatus
-from .serializers import AgentAdminSerializer, AccountSimpleSerializer, AgentSerializer
-from django.db.models import Count
+from .models import Agent
+from .serializers import AgentSerializer
+from django.db.models import Count, Q
 
 from apps.customers.services import run_auto_assign_logic, run_auto_assign_batch_all
+from apps.sales.models import SalesAssignment
+from apps.sales.serializers import SalesAssignmentSerializer
 
 
 User = get_user_model()
@@ -23,7 +24,7 @@ class AgentViewSet(viewsets.ModelViewSet):
     queryset = Agent.objects.select_related('user').all().order_by('-created_at')    
 
     # 2. 기본 시리얼라이저: 관리자용 (생성/수정 등 모든 필드 포함)
-    serializer_class = AgentAdminSerializer
+    serializer_class = AgentSerializer
 
     pagination_class = None # 상담원 API만 페이지네이션 없이 '통짜 배열'을 줍니다.
     
@@ -82,21 +83,18 @@ class AgentViewSet(viewsets.ModelViewSet):
     def customers(self, request, pk=None):
         agent = self.get_object()
         
-        # related_name='customers' 라고 가정 (만약 에러나면 customer_set으로 변경)
-        if hasattr(agent, 'customers'):
-            my_customers = agent.customers.all().order_by('-created_at')
-        else:
-            my_customers = agent.customer_set.all().order_by('-created_at')
-
-        serializer = CustomerSerializer(my_customers, many=True)
+        my_assignments = SalesAssignment.objects.filter(agent=agent).select_related('customer').annotate(
+            call_count=Count('call_logs')
+        ).order_by('-updated_at')
+        serializer = SalesAssignmentSerializer(my_assignments, many=True)
         return Response(serializer.data)
-
-    queryset = Agent.objects.all()
-    serializer_class = AgentSerializer
 
     def get_queryset(self):
         return Agent.objects.annotate(
-            assigned_count=Count('customers')
+            assigned_count=Count(
+                'assignments',
+                filter=Q(assignments__status__in=['ASSIGNED', 'TRYING'])
+            )
         ).order_by('-created_at')
 
     # ----------------------------------------------------------------
@@ -106,8 +104,8 @@ class AgentViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         agent = self.get_object()
 
-        if agent.customers.exists(): 
-            print(f"🚨 삭제 차단됨! 잔류 고객: {list(agent.customers.values('id', 'name', 'status'))}")
+        if agent.assignments.exists():
+            print(f"🚨 삭제 차단됨! 잔류 배정: {list(agent.assignments.values('id', 'status'))}")
             return Response(
                  {"error": "배정된 고객이나 상담 이력이 있는 직원은 삭제할 수 없습니다. 대신 '퇴사' 처리를 이용해주세요."}, 
                  status=status.HTTP_400_BAD_REQUEST
@@ -145,16 +143,13 @@ class AgentViewSet(viewsets.ModelViewSet):
             
             # 3. [핵심] 배정된 고객 회수 (ASSIGNED -> NEW, 담당자 None)
             # 완료(COMPLETED)된 건은 건드리지 않고, 진행 중인 건만 회수합니다.
-            if hasattr(agent, 'customers'):
-                active_customers = agent.customers.filter(status='ASSIGNED')
-            else:
-                active_customers = agent.customer_set.filter(status='ASSIGNED')
+            active_assignments = agent.assignments.filter(status__in=['ASSIGNED', 'TRYING'])
             
             # 회수된 고객 수 저장 (메시지용)
-            released_count = active_customers.count()
+            released_count = active_assignments.count()
             
             # 일괄 업데이트 (담당자 해제 및 상태 초기화)
-            active_customers.update(assigned_agent=None, status='NEW')
+            active_assignments.update(agent=None, status='NEW')
 
         return Response({
             "message": f"{agent.user.name} 님의 퇴사 처리가 완료되었습니다. (고객 {released_count}명 배정 취소됨)",
@@ -168,15 +163,13 @@ class AgentViewSet(viewsets.ModelViewSet):
     # ----------------------------------------------------------------
     @action(detail=False, methods=['get'], url_path='dashboard_stats')
     def dashboard_stats(self, request):
-        from apps.customers.models import Customer 
-
         # 1. [상담원] 통계
         total_agents = Agent.objects.count()
         active_agents = Agent.objects.exclude(status='OFFLINE').count()
 
         # 2. [고객] 통계
-        total_customers = Customer.objects.count()
-        success_customers = Customer.objects.filter(status=Customer.Status.SUCCESS).count()
+        total_customers = SalesAssignment.objects.count()
+        success_customers = SalesAssignment.objects.filter(status='SUCCESS').count()
 
 
         # 3. 성공률

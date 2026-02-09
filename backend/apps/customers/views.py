@@ -8,16 +8,14 @@ from rest_framework.decorators import action
 from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone 
-from django.shortcuts import get_object_or_404
 from django.core.files.storage import default_storage 
 from django.conf import settings
 
 from .models import Customer
 from .serializers import CustomerSerializer
-from apps.agents.models import Agent
 
 # ✅ Celery Task Import
-from .tasks import task_run_auto_assign, task_process_large_excel
+from .tasks import task_process_large_excel
 
 # ----------------------------------------------------------------
 # 1. [수정됨] 엑셀 업로드 뷰 (비동기 방식)
@@ -61,7 +59,7 @@ class CustomerUploadView(APIView):
 # 2. 고객 관리 ViewSet (기존 기능 100% 유지)
 # ----------------------------------------------------------------
 class CustomerViewSet(viewsets.ModelViewSet):
-    queryset = Customer.objects.select_related('assigned_agent').all().order_by('-created_at')
+    queryset = Customer.objects.all().order_by('-created_at')
     serializer_class = CustomerSerializer
     
     # 필터 설정
@@ -71,13 +69,12 @@ class CustomerViewSet(viewsets.ModelViewSet):
         filters.OrderingFilter 
     ]
     
-    filterset_fields = ['status', 'assigned_agent'] 
+    filterset_fields = ['category_1', 'category_2', 'category_3', 'region_1', 'region_2']
     
     # ✅ 검색 필드에 새로운 컬럼(분야, 지역) 추가
     search_fields = [
-        'name', 'phone', 'memo', 'region',
+        'name', 'phone', 'region', 'region_1', 'region_2',
         'category_1', 'category_2', 'category_3', 
-        'region'
     ] 
     
     ordering_fields = ['created_at', 'updated_at']
@@ -86,70 +83,6 @@ class CustomerViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return super().get_queryset()
     
-    # ----------------------------------------------------------------
-    # 기능: 고객 대량 배정 (Bulk Assign)
-    # ----------------------------------------------------------------
-    @action(detail=False, methods=['post'], url_path='bulk-assign')
-    def bulk_assign(self, request):
-        target_ids = request.data.get('ids', [])      
-        target_agent_id = request.data.get('agent_id') 
-
-        if not target_ids:
-            return Response({"detail": "배정할 고객을 선택해주세요."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if not target_agent_id:
-            return Response({"detail": "배정할 상담원을 선택해주세요."}, status=status.HTTP_400_BAD_REQUEST)
-
-        agent = get_object_or_404(Agent, pk=target_agent_id)
-
-        # Bulk Update
-        updated_count = self.get_queryset().filter(id__in=target_ids).update(
-            assigned_agent=agent,     
-            status='ASSIGNED',     
-            updated_at=timezone.now() 
-        )
-
-        return Response({
-            "message": f"성공적으로 {updated_count}명의 고객을 {agent.user.name}님에게 배정했습니다.",
-            "updated_count": updated_count
-        })
-
-    # ----------------------------------------------------------------
-    # 기능: 배정 취소 (Bulk Unassign)
-    # ----------------------------------------------------------------
-    @action(detail=False, methods=['post'], url_path='bulk-unassign')
-    def bulk_unassign(self, request):
-        ids = request.data.get('ids', [])
-        if not ids:
-            return Response({"error": "선택된 고객이 없습니다."}, status=400)
-
-        with transaction.atomic():
-            updated_count = Customer.objects.filter(id__in=ids).update(
-                assigned_agent=None,
-                status='NEW' 
-            )
-            
-        return Response({
-            "message": f"✅ {updated_count}명의 배정이 취소되었습니다."
-        })
-
-
-    # ----------------------------------------------------------------
-    # 기능: 자동 배정 수동 실행
-    # ----------------------------------------------------------------
-    @action(detail=False, methods=['post'], url_path='run-daily-assign')
-    def run_daily_assign(self, request):
-        # 실행자 정보 확보
-        trigger_user = request.user.name if hasattr(request.user, 'name') else request.user.username
-        
-        # Celery Task 비동기 호출
-        task_run_auto_assign.delay(triggered_by=trigger_user)
-
-        return Response({
-            'message': '자동 배정 작업이 시작되었습니다.',
-            'info': '결과는 [자동 배정 이력] 메뉴에서 잠시 후 확인 가능합니다.'
-        }, status=202)
-
     # ----------------------------------------------------------------
     # 기능: DB 초기화
     # ----------------------------------------------------------------

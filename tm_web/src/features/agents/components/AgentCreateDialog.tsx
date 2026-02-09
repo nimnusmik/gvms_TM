@@ -18,14 +18,14 @@ interface Props {
 export function AgentCreateDialog({ isOpen, onClose, onSuccess }: Props) {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState<any | null>(null);
-  const [config, setConfig] = useState({ daily_cap: 50, team: 'SALES_1', assigned_phone: '' });
+  const [config, setConfig] = useState({ daily_cap: 50, team: 'SALES_TM', assigned_phone: '' });
 
   
   // 모달 열릴 때 후보자 목록 로드
   useEffect(() => {
     if (isOpen) {
       setSelectedCandidate(null);
-      setConfig({ daily_cap: 50, team: 'SALES_1', assigned_phone: '' });
+      setConfig({ daily_cap: 50, team: 'SALES_TM', assigned_phone: '' });
       agentApi.getCandidates()
         .then(setCandidates)
         .catch(() => toast.error("후보자 목록 로딩 실패"));

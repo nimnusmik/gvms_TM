@@ -77,9 +77,9 @@ export default function AssignAgentModal({
               {isFetching ? "상담원 목록 로딩 중..." : "✓ 상담원 선택..."}
             </option>
             
-            {agents.map((agent: any) => (
-              <option key={agent.id || agent.agent_id} value={agent.id || agent.agent_id}>
-                {agent.name || agent.user?.name || "이름 없음"}
+            {agents.map((agent: Agent) => (
+              <option key={agent.agent_id} value={agent.agent_id}>
+                {agent.name || "이름 없음"}
                 
                 {agent.assigned_phone ? ` / ${formatPhoneNumber(agent.assigned_phone)}` : ""}
                 

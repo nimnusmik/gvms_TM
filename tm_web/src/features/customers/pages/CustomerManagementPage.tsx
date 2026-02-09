@@ -25,6 +25,7 @@ export default function CustomerManagementPage() {
     page,
     setPage,
     totalPages,
+    totalCount,
     searchTerm,
     setSearchTerm,
     activeSearch,
@@ -140,7 +141,7 @@ export default function CustomerManagementPage() {
     <div className="p-6 space-y-4">
       {/* 상단 툴바 (검색, 필터, 업로드, DB초기화) */}
       <CustomerToolbar
-        totalCount={customers.length}
+        totalCount={totalCount}
         isLoading={isLoading}
         isUploading={isUploading}
         fileInputRef={fileInputRef}

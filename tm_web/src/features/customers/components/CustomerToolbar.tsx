@@ -54,7 +54,7 @@ export function CustomerToolbar({
       {/* 상단 헤더 영역 */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">고객 DB 관리</h1>
+          <h1 className="text-2xl font-bold text-gray-900">리드 배정 관리</h1>
           <p className="text-sm text-gray-500 mt-1">
             총 <span className="font-bold text-gray-900">{totalCount}</span>개의 리드가 조회되었습니다.
           </p>
@@ -102,7 +102,7 @@ export function CustomerToolbar({
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
           <Input
-            placeholder="고객명, 전화번호 검색 (Enter)"
+            placeholder="고객명, 전화번호, 메모 검색 (Enter)"
             className="pl-9 bg-gray-50 border-gray-200"
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
@@ -116,10 +116,13 @@ export function CustomerToolbar({
           onChange={(e) => onStatusChange(e.target.value)}
         >
           <option value="ALL">모든 상태</option>
-          <option value="NEW">접수 (NEW)</option>
+          <option value="NEW">대기 (NEW)</option>
           <option value="ASSIGNED">배정됨 (ASSIGNED)</option>
+          <option value="TRYING">통화중 (TRYING)</option>
           <option value="SUCCESS">성공 (SUCCESS)</option>
           <option value="REJECT">거절 (REJECT)</option>
+          <option value="ABSENCE">부재 (ABSENCE)</option>
+          <option value="INVALID">결번 (INVALID)</option>
         </select>
 
         <select
