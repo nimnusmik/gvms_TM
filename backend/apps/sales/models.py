@@ -16,7 +16,10 @@ class SalesAssignment(models.Model):
         ABSENCE = 'ABSENCE', '부재'
         INVALID = 'INVALID', '결번'       # 정산 제외 가능성 있음
         SUCCESS = 'SUCCESS', '성공(동의/계약)' # 다음 단계 이동 / 정산 대상
-
+        BUY = 'BUY', '구매'
+        REFUSAL = 'REFUSAL', '거절'
+        HOLD = 'HOLD', '보류'
+            
     class Sentiment(models.TextChoices):
         HIGH = 'HIGH', '상'
         MID = 'MID', '중'
@@ -31,6 +34,7 @@ class SalesAssignment(models.Model):
 
     # 상태 데이터
     stage = models.CharField(max_length=10, choices=Stage.choices, default=Stage.FIRST)
+    
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.NEW)
     
     # 상담원 입력 데이터

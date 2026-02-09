@@ -21,20 +21,26 @@
 ### 상담원(agents)
 - 모델: `Agent` (팀, 역할, 상태, 일일할당량, 자동배정 여부)
 - 생성/수정 시 자동배정 ON이면 즉시 배정 로직 수행
-- 퇴사 처리: 상담원 비활성화 + 배정 고객 회수
+- 퇴사 처리: 상담원 비활성화 + 배정 리드 회수
 
 ### 고객(customers)
-- 상태: NEW, ASSIGNED, TRYING, REJECT, SUCCESS, LATER, INVALID
-- 팀 기반 배정 (상담원 팀과 고객 팀 매칭)
+- 고객 기본 정보 저장용(이름/전화/분야/지역 등)
 - 엑셀 업로드로 대량 등록 가능
+- (레거시) `customers.status`는 존재하나, 실제 영업 상태는 `sales`에서 관리
+
+### 영업/배정(sales)
+- 모델: `SalesAssignment` (고객-상담원 배정 단위)
+- 상태: NEW, ASSIGNED, TRYING, REJECT, ABSENCE, INVALID, SUCCESS
+- 1차/2차 단계(stage) 구분
+- 엑셀 업로드 시 고객 생성 + 1차/NEW 배정 레코드 자동 생성
 
 ### 자동 배정 (핵심 흐름)
-1. `/api/v1/customers/run-daily-assign/` 호출
+1. `/api/v1/sales/run-daily-assign/` 호출
 2. Celery Task(`task_run_auto_assign`) 비동기 실행
 3. 상담원별 `run_auto_assign_logic()` 수행
    - 상담원 현재 보유량 계산
    - daily_cap 만큼 부족분만큼 배정
-   - `NEW` + `assigned_agent is null` + 동일 팀 고객을 오래된 순으로 가져와 배정
+   - `NEW` + `agent is null` + 1차 리드를 오래된 순으로 가져와 배정
 4. 결과는 `AssignmentLog`에 기록
 
 ## 3) 주요 API 엔드포인트 (요약)
@@ -44,6 +50,9 @@
   - `GET /dashboard_stats/`
 - Customers: `/api/v1/customers/`
   - `POST /upload_excel/`
+  - `DELETE /reset-db/`
+- Sales: `/api/v1/sales/`
+  - `GET /` (리드/배정 목록)
   - `POST /bulk-assign/`, `POST /bulk-unassign/`
   - `POST /run-daily-assign/`
 - Notices: `/api/v1/notices/`
@@ -53,8 +62,8 @@
 - `axios` baseURL은 접속 host에 맞춰 자동 결정
 - 주요 기능
   - 상담원 관리 (CRUD, 퇴사처리)
-  - 고객 관리 (엑셀 업로드, 배정/해제, 상태 관리)
-  - 자동 배정 실행
+  - 리드/배정 관리 (엑셀 업로드, 배정/해제, 상태 관리)
+  - 자동 배정 실행 (sales 기준)
 
 ## 5) 파일 트리 (핵심만)
 ```
@@ -64,6 +73,7 @@
 │  │  ├─ accounts/
 │  │  ├─ agents/
 │  │  ├─ customers/
+│  │  ├─ sales/
 │  │  └─ notices/
 │  ├─ config/
 │  ├─ manage.py
@@ -120,17 +130,16 @@ npm start
 - `POSTGRES_PORT`
 
 ## 8) 규칙/운영 원칙
-- 고객 배정 로직은 팀/상태/캡 기준으로 동작 (서비스 로직은 `customers/services.py`)
+- 자동 배정 로직은 `customers/services.py`에서 `SalesAssignment` 기준으로 동작
 - 자동 배정은 Celery 비동기로 수행되고 로그를 남김
 - 상담원 삭제는 안전장치가 있고, 기본은 퇴사 처리
 - 프론트엔드 API 호출은 `/api/v1` 기준
 
 ## 9) 현재 확인된 개선 포인트
-- 프론트에서 호출하는 `DELETE /customers/reset-db/`가 백엔드에 아직 구현되어 있지 않음
+- 엑셀 대용량 처리 시 pandas 버전에 따라 chunksize 미지원 가능 (fallback 처리 있음)
 - Celery Beat 스케줄은 구성되어 있으나 실제 스케줄 등록은 미구현
 
 ## 10) 다음 스텝 제안
-1. `customers/reset-db/` API 구현 여부 결정 및 정리
-2. 자동 배정 로그/이력 페이지 UI와 백엔드 조회 API 강화
-3. 고객 상태 변경 워크플로우 정의(TRYING/REJECT/SUCCESS 등)
-4. 테스트/권한(역할별 접근 제어) 강화
+1. 자동 배정 로그/이력 페이지 UI와 백엔드 조회 API 강화
+2. 2차(stage=2ND) 워크플로우 및 전환 규칙 정의
+3. 테스트/권한(역할별 접근 제어) 강화

@@ -22,6 +22,10 @@ interface CustomerToolbarProps {
   onStatusChange: (value: string) => void;
   agentFilter: string;
   onAgentChange: (value: string) => void;
+  secondaryStatusFilter: string;
+  onSecondaryStatusChange: (value: string) => void;
+  secondaryAgentFilter: string;
+  onSecondaryAgentChange: (value: string) => void;
   agents: Agent[];
   uploadProcessing: boolean;
   onDismissUploadProcessing: () => void;
@@ -43,6 +47,10 @@ export function CustomerToolbar({
   onStatusChange,
   agentFilter,
   onAgentChange,
+  secondaryStatusFilter,
+  onSecondaryStatusChange,
+  secondaryAgentFilter,
+  onSecondaryAgentChange,
   agents,
   uploadProcessing,
   onDismissUploadProcessing,
@@ -131,6 +139,30 @@ export function CustomerToolbar({
           onChange={(e) => onAgentChange(e.target.value)}
         >
           <option value="ALL">담당자 전체</option>
+          {agents.map((agent) => (
+            <option key={agent.agent_id} value={String(agent.agent_id)}>
+              {agent.name} ({agent.code})
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="customer-filter-select"
+          value={secondaryStatusFilter}
+          onChange={(e) => onSecondaryStatusChange(e.target.value)}
+        >
+          <option value="ALL">2차 상태 전체</option>
+          <option value="BUY">구매 (BUY)</option>
+          <option value="REFUSAL">거절 (REFUSAL)</option>
+          <option value="HOLD">보류 (HOLD)</option>
+        </select>
+
+        <select
+          className="customer-filter-select"
+          value={secondaryAgentFilter}
+          onChange={(e) => onSecondaryAgentChange(e.target.value)}
+        >
+          <option value="ALL">2차 담당자 전체</option>
           {agents.map((agent) => (
             <option key={agent.agent_id} value={String(agent.agent_id)}>
               {agent.name} ({agent.code})

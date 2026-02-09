@@ -12,6 +12,7 @@ interface CustomerTableProps {
   selectedIds: number[];
   onSelectAll: (checked: boolean) => void;
   onSelectRow: (id: number) => void;
+  onUpdateSecondaryStatus: (secondaryId: number, status: string) => void;
   onPrevPage: () => void;
   onNextPage: () => void;
 }
@@ -24,6 +25,7 @@ export function CustomerTable({
   selectedIds,
   onSelectAll,
   onSelectRow,
+  onUpdateSecondaryStatus,
   onPrevPage,
   onNextPage,
 }: CustomerTableProps) {
@@ -60,15 +62,20 @@ export function CustomerTable({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
                 분야3
               </th>
-
-              {/* ❌ 지역 컬럼 제거됨 */}
               
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                담당자
+                1차 담당자
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                상태
+                상태 (1차)
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                2차 담당자 
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                상태 (2차)
+              </th>
+             
               <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 통화
               </th>
@@ -80,13 +87,13 @@ export function CustomerTable({
           <tbody className="bg-white divide-y divide-gray-200">
             {isLoading ? (
               <tr>
-                <td colSpan={10} className="text-center py-20 text-gray-400"> {/* colSpan 수정: 11 -> 10 */}
+                <td colSpan={12} className="text-center py-20 text-gray-400">
                   데이터를 불러오는 중입니다...
                 </td>
               </tr>
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan={10} className="text-center py-20 text-gray-400"> {/* colSpan 수정: 11 -> 10 */}
+                <td colSpan={12} className="text-center py-20 text-gray-400">
                   데이터가 없습니다.
                 </td>
               </tr>
@@ -145,9 +152,7 @@ export function CustomerTable({
                     ) : "-"}
                   </td>
 
-                  {/* ❌ 지역 데이터 제거됨 */}
-
-                  {/* 6. 담당자 */}
+                  {/* 6. 1차 담당자 */}
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     {assignment.agent_name ? (
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700">
@@ -158,7 +163,7 @@ export function CustomerTable({
                     )}
                   </td>
 
-                  {/* 7. 상태 */}
+                    {/* 7. 상태(1차) */}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <Badge
                       variant="outline"
@@ -174,6 +179,42 @@ export function CustomerTable({
                     >
                       {assignment.status_display || assignment.status}
                     </Badge>
+                  </td>
+
+                  {/* 6. 2차 담당자 */}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    {assignment.secondary_assignment?.agent_name ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700">
+                        {assignment.secondary_assignment.agent_name}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">미배정</span>
+                    )}
+                  </td>
+
+                  {/* 7. 상태(2차)*/}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {assignment.secondary_assignment ? (
+                      <select
+                        className="h-8 rounded-md border border-gray-200 bg-white px-2 text-xs"
+                        value={assignment.secondary_assignment.status || ""}
+                        onChange={(e) =>
+                          onUpdateSecondaryStatus(assignment.secondary_assignment!.id, e.target.value)
+                        }
+                      >
+                        <option value="ASSIGNED">배정됨</option>
+                        <option value="BUY">구매</option>
+                        <option value="REFUSAL">거절</option>
+                        <option value="HOLD">보류</option>
+                      </select>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full border-0 bg-gray-100 text-gray-800"
+                      >
+                        -
+                      </Badge>
+                    )}
                   </td>
 
                   {/* 8. 통화 횟수 */}

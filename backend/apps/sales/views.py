@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Prefetch
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 
@@ -28,7 +28,28 @@ class SalesAssignmentViewSet(viewsets.ModelViewSet):
         user = self.request.user
         base_qs = SalesAssignment.objects.select_related('customer', 'agent').annotate(
             call_count=Count('call_logs')
+        ).prefetch_related(
+            Prefetch(
+                'child_assignments',
+                queryset=SalesAssignment.objects.filter(stage='2ND').select_related('agent', 'agent__user'),
+                to_attr='secondary_assignments'
+            )
         )
+
+        secondary_status = self.request.query_params.get('secondary_status')
+        secondary_agent = self.request.query_params.get('secondary_agent')
+        if secondary_status:
+            base_qs = base_qs.filter(
+                child_assignments__stage='2ND',
+                child_assignments__status=secondary_status
+            )
+        if secondary_agent:
+            base_qs = base_qs.filter(
+                child_assignments__stage='2ND',
+                child_assignments__agent_id=secondary_agent
+            )
+        if secondary_status or secondary_agent:
+            base_qs = base_qs.distinct()
         if getattr(user, 'is_superuser', False):
             return base_qs
         if not hasattr(user, 'agent_profile'):
@@ -110,3 +131,30 @@ class SalesAssignmentViewSet(viewsets.ModelViewSet):
             'message': '자동 배정 작업이 시작되었습니다.',
             'info': '결과는 [자동 배정 이력] 메뉴에서 잠시 후 확인 가능합니다.'
         }, status=202)
+
+    @action(detail=True, methods=['post'], url_path='assign-secondary')
+    def assign_secondary(self, request, pk=None):
+        assignment = self.get_object()
+        agent_id = request.data.get('agent_id')
+
+        if assignment.stage != SalesAssignment.Stage.FIRST:
+            return Response({"detail": "1차 배정 건만 2차 배정이 가능합니다."}, status=status.HTTP_400_BAD_REQUEST)
+        if assignment.status != SalesAssignment.Status.SUCCESS:
+            return Response({"detail": "SUCCESS 상태인 건만 2차 배정이 가능합니다."}, status=status.HTTP_400_BAD_REQUEST)
+        if assignment.child_assignments.filter(stage='2ND').exists():
+            return Response({"detail": "이미 2차 배정이 존재합니다."}, status=status.HTTP_400_BAD_REQUEST)
+        if not agent_id:
+            return Response({"detail": "2차 담당자를 선택해주세요."}, status=status.HTTP_400_BAD_REQUEST)
+
+        agent = get_object_or_404(Agent, pk=agent_id)
+
+        secondary = SalesAssignment.objects.create(
+            customer=assignment.customer,
+            agent=agent,
+            parent_assignment=assignment,
+            stage=SalesAssignment.Stage.SECOND,
+            status=SalesAssignment.Status.ASSIGNED,
+        )
+
+        serializer = self.get_serializer(secondary)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

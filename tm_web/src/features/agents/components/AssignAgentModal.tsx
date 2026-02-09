@@ -11,13 +11,19 @@ interface AssignAgentModalProps {
   onClose: () => void;
   onConfirm: (agentId: string) => Promise<void>;
   selectedCount: number;
+  title?: string;
+  description?: string;
+  confirmLabel?: string;
 }
 
 export default function AssignAgentModal({ 
   isOpen, 
   onClose, 
   onConfirm, 
-  selectedCount 
+  selectedCount,
+  title,
+  description,
+  confirmLabel
 }: AssignAgentModalProps) {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
@@ -58,13 +64,17 @@ export default function AssignAgentModal({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[400px] bg-white">
         <DialogHeader>
-          <DialogTitle>상담원 배정</DialogTitle>
+          <DialogTitle>{title || "상담원 배정"}</DialogTitle>
         </DialogHeader>
 
         <div className="py-6 space-y-4">
           <p className="text-sm text-gray-600">
-            선택된 <span className="font-bold text-blue-600 text-lg">{selectedCount}명</span>의 고객을<br/>
-            누구에게 배정하시겠습니까?
+            {description || (
+              <>
+                선택된 <span className="font-bold text-blue-600 text-lg">{selectedCount}명</span>의 고객을<br/>
+                누구에게 배정하시겠습니까?
+              </>
+            )}
           </p>
 
           <select 
@@ -106,7 +116,7 @@ export default function AssignAgentModal({
               disabled={isLoading || !selectedAgentId}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
-              {isLoading ? '배정 중...' : '확인'}
+              {isLoading ? '배정 중...' : (confirmLabel || '확인')}
             </Button>
           </div>
         </DialogFooter>

@@ -15,6 +15,8 @@ export function useCustomerList() {
   const [activeSearch, setActiveSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [agentFilter, setAgentFilter] = useState("ALL");
+  const [secondaryStatusFilter, setSecondaryStatusFilter] = useState("ALL");
+  const [secondaryAgentFilter, setSecondaryAgentFilter] = useState("ALL");
   const prevFilterKey = useRef<string>("");
 
   const fetchData = useCallback(
@@ -26,6 +28,8 @@ export function useCustomerList() {
           search: activeSearch,
           status: statusFilter === "ALL" ? undefined : statusFilter,
           agentId: agentFilter === "ALL" ? undefined : agentFilter,
+          secondaryStatus: secondaryStatusFilter === "ALL" ? undefined : secondaryStatusFilter,
+          secondaryAgentId: secondaryAgentFilter === "ALL" ? undefined : secondaryAgentFilter,
         });
 
         setCustomers(data.results);
@@ -39,10 +43,10 @@ export function useCustomerList() {
         setIsLoading(false);
       }
     },
-    [activeSearch, statusFilter, agentFilter]
+    [activeSearch, statusFilter, agentFilter, secondaryStatusFilter, secondaryAgentFilter]
   );
 
-  const filterKey = `${activeSearch}|${statusFilter}|${agentFilter}`;
+  const filterKey = `${activeSearch}|${statusFilter}|${agentFilter}|${secondaryStatusFilter}|${secondaryAgentFilter}`;
 
   useEffect(() => {
     if (prevFilterKey.current !== filterKey) {
@@ -65,6 +69,8 @@ export function useCustomerList() {
     setActiveSearch("");
     setStatusFilter("ALL");
     setAgentFilter("ALL");
+    setSecondaryStatusFilter("ALL");
+    setSecondaryAgentFilter("ALL");
   }, []);
 
   const reloadPage = useCallback(() => {
@@ -93,6 +99,10 @@ export function useCustomerList() {
     setStatusFilter,
     agentFilter,
     setAgentFilter,
+    secondaryStatusFilter,
+    setSecondaryStatusFilter,
+    secondaryAgentFilter,
+    setSecondaryAgentFilter,
     applySearch,
     resetFilters,
     reloadPage,

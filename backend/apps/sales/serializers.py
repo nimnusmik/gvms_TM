@@ -17,6 +17,8 @@ class SalesAssignmentSerializer(serializers.ModelSerializer):
     agent_name = serializers.SerializerMethodField()
     agent_code = serializers.SerializerMethodField()
 
+    secondary_assignment = serializers.SerializerMethodField()
+    
     # 1차/2차 구분, 상태 등은 사람이 읽기 좋은 글자(Label)로도 변환 가능
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     stage_display = serializers.CharField(source='get_stage_display', read_only=True)
@@ -36,6 +38,9 @@ class SalesAssignmentSerializer(serializers.ModelSerializer):
             'agent_id',
             'agent_name',
             'agent_code',
+
+            'secondary_assignment',
+            
             'call_count',
             'assigned_at', 
             'updated_at'
@@ -50,6 +55,27 @@ class SalesAssignmentSerializer(serializers.ModelSerializer):
 
     def get_agent_code(self, obj):
         return obj.agent.code if obj.agent else None
+
+    def get_secondary_assignment(self, obj):
+        secondary = None
+        if hasattr(obj, 'secondary_assignments'):
+            secondary = obj.secondary_assignments[0] if obj.secondary_assignments else None
+        else:
+            secondary = obj.child_assignments.filter(stage='2ND').select_related('agent', 'agent__user').first()
+
+        if not secondary:
+            return None
+
+        return {
+            'id': secondary.id,
+            'status': secondary.status,
+            'status_display': secondary.get_status_display(),
+            'agent_id': str(secondary.agent.agent_id) if secondary.agent else None,
+            'agent_name': secondary.agent.user.name if secondary.agent and secondary.agent.user else None,
+            'agent_code': secondary.agent.code if secondary.agent else None,
+            'assigned_at': secondary.assigned_at,
+            'updated_at': secondary.updated_at,
+        }
 
 # [2] 통화 기록 (정산용)
 class CallLogSerializer(serializers.ModelSerializer):
