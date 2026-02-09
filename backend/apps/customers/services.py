@@ -65,7 +65,8 @@ def _get_candidate_ids(agent: Agent, needed_count: int) -> list[int]:
     candidates = SalesAssignment.objects.select_for_update(skip_locked=True).filter(
         agent__isnull=True,  # 담당자 없음 (미배정)
         stage=SalesAssignment.Stage.FIRST,
-        status=SalesAssignment.Status.NEW
+        status=SalesAssignment.Status.NEW,
+        team=SalesAssignment.Team.SALES_TM
     ).order_by('assigned_at')[:needed_count]  # 오래된 순으로, 필요한 만큼만
     
     return [c.id for c in candidates]
