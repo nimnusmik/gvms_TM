@@ -56,12 +56,17 @@ export function AgentEditDialog({ agent, onClose, onSuccess }: Props) {
     if (!confirm(`${agent.name} 님을 정말 퇴사 처리 하시겠습니까?\n로그인이 차단됩니다.`)) return;
 
     try {
-      await agentApi.resignAgent(agent.agent_id);
-      toast.info("퇴사 처리가 완료되었습니다.");
+      
+      const response = await agentApi.resignAgent(agent.agent_id);
+      const serverMessage = response.message || response.data?.message || "퇴사 처리가 완료되었습니다.";
+      toast.info(serverMessage);
+      
       onSuccess();
       onClose();
-    } catch (error) {
-      toast.error("퇴사 처리 중 오류가 발생했습니다.");
+    } catch (error: any) {
+      
+      const errorMessage = error.response?.data?.message || "퇴사 처리 중 오류가 발생했습니다.";
+      toast.error(errorMessage);
     }
   };
 

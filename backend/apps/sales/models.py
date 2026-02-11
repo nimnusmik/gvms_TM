@@ -12,13 +12,14 @@ class SalesAssignment(models.Model):
     class Status(models.TextChoices):
         NEW = 'NEW', '대기(미배정)'      # 땡겨오기 전
         ASSIGNED = 'ASSIGNED', '배정됨' # 내꺼
+
+
+        
         TRYING = 'TRYING', '통화중'
         REJECT = 'REJECT', '거절'         # 재활용 대상
-        ABSENCE = 'ABSENCE', '부재'
         INVALID = 'INVALID', '결번'       # 정산 제외 가능성 있음
         SUCCESS = 'SUCCESS', '성공(동의/계약)' # 다음 단계 이동 / 정산 대상
         BUY = 'BUY', '구매'
-        REFUSAL = 'REFUSAL', '거절'
         HOLD = 'HOLD', '보류'
             
     class Sentiment(models.TextChoices):

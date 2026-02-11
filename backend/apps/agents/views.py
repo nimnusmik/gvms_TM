@@ -15,7 +15,7 @@ from django.db.models.functions import Coalesce, TruncDate
 from django.utils import timezone
 from datetime import timedelta
 
-from apps.customers.services import run_auto_assign_logic, run_auto_assign_batch_all
+from apps.sales.services import assign_leads_to_agent 
 from apps.sales.models import SalesAssignment
 from apps.sales.serializers import SalesAssignmentSerializer
 from apps.calls.models import CallLog
@@ -146,7 +146,7 @@ class AgentViewSet(viewsets.ModelViewSet):
             
             # 3. [핵심] 배정된 고객 회수 (ASSIGNED -> NEW, 담당자 None)
             # 완료(COMPLETED)된 건은 건드리지 않고, 진행 중인 건만 회수합니다.
-            active_assignments = agent.assignments.filter(status__in=['ASSIGNED', 'TRYING'])
+            active_assignments = agent.assignments.filter(status__in=['ASSIGNED', 'TRYING', 'HOLD'])
             
             # 회수된 고객 수 저장 (메시지용)
             released_count = active_assignments.count()
@@ -177,7 +177,7 @@ class AgentViewSet(viewsets.ModelViewSet):
             agents = agents.filter(team=team_filter)
 
         agent_stats = agents.values(
-            'agent_id', 'user__name', 'team', 'status', 'daily_cap', 'assigned_phone'
+            'agent_id', 'user__name', 'team', 'status', 'daily_cap', 'assigned_phone', 'is_auto_assign'
         )
 
         call_stats = CallLog.objects.filter(
@@ -221,7 +221,9 @@ class AgentViewSet(viewsets.ModelViewSet):
                 'successRate': success_rate,
                 'dailyGoal': stat['daily_cap'],
                 'totalCallTime': duration_str,
-                'avatar': None # 프로필 이미지 URL이 있다면 추가
+                'avatar': None, # 프로필 이미지 URL이 있다면 추가
+
+                'isAutoAssign': stat['is_auto_assign'], 
             })
 
             # (B) 좌상단 테이블용 데이터
@@ -290,16 +292,20 @@ class AgentViewSet(viewsets.ModelViewSet):
         avg_seconds = int(total_seconds / count)
         return self._format_duration(avg_seconds)
 
-    # POST /api/v1/agents/run_daily_assign/
     @action(detail=False, methods=['post'], url_path='run-daily-assign')
     def run_daily_assign(self, request):
-        # 1. 대상 상담원 선정 (퇴사자 제외, 자동배정 켜진 사람)
+        # 1. 대상 선정: 퇴사자 제외 AND 자동배정 켜진 사람(is_auto_assign=True)
         active_agents = Agent.objects.exclude(status='RESIGNED').filter(is_auto_assign=True).order_by('created_at')
 
-        assigned_map = run_auto_assign_batch_all(list(active_agents))
-        total_assigned = sum(assigned_map.values())
-        agent_count = sum(1 for v in assigned_map.values() if v > 0)
+        total_assigned = 0
+        participated_agents = 0
+
+        for agent in active_agents:
+            count = assign_leads_to_agent(agent) 
+            if count > 0:
+                total_assigned += count
+                participated_agents += 1
 
         return Response({
-            "message": f"총 {len(active_agents)}명 중 {agent_count}명에게 {total_assigned}건의 DB가 리필되었습니다."
+            "message": f"총 {len(active_agents)}명 중 {participated_agents}명에게 {total_assigned}건의 DB가 리필되었습니다."
         })

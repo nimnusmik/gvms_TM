@@ -3,38 +3,7 @@ import { api } from '@/lib/axios';
 import { MetricsTable } from "../components/MetricsTable";
 import { PerformanceChart } from "../components/PerformanceChart";
 import { AgentStatusCard } from "../components/AgentStatusCard";
-
-type MetricsRow = {
-  name: string;
-  successRate: number;
-  avgCallTime: string;
-  contractCount: number;
-};
-
-type ChartPoint = {
-  date: string;
-  totalCalls: number;
-  successCount: number;
-  failCount: number;
-};
-
-type AgentCard = {
-  id: number | string;
-  name: string;
-  team?: string | null;
-  status: string;
-  avatar?: string | null;
-  todayCalls: number;
-  dailyGoal: number;
-  successRate: number;
-  totalCallTime: string;
-};
-
-type PerformanceData = {
-  cards: AgentCard[];
-  table: MetricsRow[];
-  chart: ChartPoint[];
-};
+import { AgentCard, PerformanceData } from  "../types/index"
 
 export default function PerformancePage() {
   // 상태 관리
@@ -55,25 +24,30 @@ export default function PerformancePage() {
           api.get('/agents/')
         ]);
 
+        const stats =
+          statsResult.status === 'fulfilled' ? (statsResult.value.data ?? {}) : {};
+
         const agents =
           agentsResult.status === 'fulfilled' && Array.isArray(agentsResult.value.data)
             ? agentsResult.value.data
             : [];
 
-        const cards: AgentCard[] = agents.map((agent: any) => ({
-          id: agent.agent_id ?? agent.id,
-          name: agent.name ?? '이름 없음',
-          team: agent.team ?? null,
-          status: agent.status ?? 'OFFLINE',
-          avatar: null,
-          todayCalls: 0,
-          dailyGoal: agent.daily_cap ?? 0,
-          successRate: 0,
-          totalCallTime: '0:00'
-        }));
+        const statsCards = Array.isArray(stats.cards) ? stats.cards : [];
 
-        const stats =
-          statsResult.status === 'fulfilled' ? (statsResult.value.data ?? {}) : {};
+        const cards: AgentCard[] =
+          statsCards.length > 0
+            ? statsCards
+            : agents.map((agent: any) => ({
+                id: agent.agent_id ?? agent.id,
+                name: agent.name ?? '이름 없음',
+                team: agent.team ?? null,
+                status: agent.status ?? 'OFFLINE',
+                avatar: null,
+                todayCalls: 0,
+                dailyGoal: agent.daily_cap ?? 0,
+                successRate: 0,
+                totalCallTime: '0:00'
+              }));
 
         setData({
           cards,
