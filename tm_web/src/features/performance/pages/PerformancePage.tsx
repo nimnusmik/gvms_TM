@@ -81,10 +81,6 @@ export default function PerformancePage() {
       <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 text-white p-6 shadow-lg border border-slate-700/60">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">
-              <span className="h-2 w-2 rounded-full bg-emerald-400" />
-              실시간 성과 대시보드
-            </div>
             <h1 className="mt-3 text-2xl font-bold tracking-tight">성과 현황</h1>
             <p className="mt-1 text-sm text-slate-200/80">
               상담원 운영 상태와 실시간 지표를 한 화면에서 확인합니다.
