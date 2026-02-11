@@ -6,15 +6,16 @@ import { Button } from "@/components/ui/button";
 // 컴포넌트들
 import { DashboardHeader } from "../components/DashboardHeader";
 import { DashboardStatGrid } from "../components/DashboardStatGrid";
-import { DashboardCallTrendCard } from "../components/DashboardCallTrendCard";
 import { DashboardNoticeCard } from "../components/DashboardNoticeCard";
+import { PerformanceChart } from "@/features/performance/components/PerformanceChart";
 
 // 훅 및 유틸리티
 import { useDashboardStats } from "../hooks/useDashboardStats";
-import { formatToTime } from "@/lib/dateUtils"; // 👈 분리한 함수 사용
+import { formatToTime } from "@/lib/dateUtils";
 
 export default function DashboardOverviewPage() {
   const { stats, isLoading, lastUpdated, refresh } = useDashboardStats();
+  const callTrendData = stats?.chart ?? [];
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#eef2ff_0%,_#f8fafc_42%,_#ffffff_100%)] p-6 space-y-8">
@@ -50,12 +51,19 @@ export default function DashboardOverviewPage() {
 
       {/* 📉 차트 및 공지사항 영역 */}
       <div className="grid gap-6 lg:grid-cols-7">
-        <div className="lg:col-span-4">
-          <DashboardCallTrendCard />
-        </div>
         <div className="lg:col-span-3">
-          <DashboardNoticeCard />
+          <DashboardNoticeCard rows={stats?.table ?? []} isLoading={isLoading} />
         </div>
+        <div className="lg:col-span-4">
+          {callTrendData.length > 0 ? (
+            <PerformanceChart data={callTrendData} />
+          ) : (
+            <div className="rounded-2xl border border-slate-200/70 bg-white/90 p-6 text-center text-sm text-slate-400 shadow-sm">
+              통화 추이 데이터가 없습니다.
+            </div>
+          )}
+        </div>
+        
       </div>
     </div>
   );

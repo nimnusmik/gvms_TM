@@ -1,3 +1,5 @@
+import type { MetricsRow } from "@/features/performance/types";
+
 export interface Candidate {
   id: number;
   email: string;
@@ -10,6 +12,13 @@ export interface DashboardStats {
   total_agents: number;
   success_rate: number;
   today_total_calls: number;
+  table?: MetricsRow[];
+  chart?: {
+    date: string;
+    totalCalls: number;
+    successCount: number;
+    failCount: number;
+  }[];
 }
 
 export interface PaginatedResponse<T> {

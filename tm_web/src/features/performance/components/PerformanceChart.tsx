@@ -15,7 +15,7 @@ export const PerformanceChart = ({ data }: PerformanceChartProps) => {
   return (
     <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm h-full">
       <h3 className="font-bold text-gray-800 mb-4">시간별/아이템별 성과 추이</h3>
-      <div className="h-64 w-full">
+      <div className="h-80 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data}>
             <CartesianGrid stroke="#f5f5f5" strokeDasharray="3 3" />

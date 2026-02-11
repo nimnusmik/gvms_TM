@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/axios';
 import { MetricsTable } from "../components/MetricsTable";
-import { PerformanceChart } from "../components/PerformanceChart";
 import { AgentStatusCard } from "../components/AgentStatusCard";
 import { AgentCard, PerformanceData } from  "../types/index"
 
@@ -150,7 +149,9 @@ export default function PerformancePage() {
             <MetricsTable data={data.table} />
           </div>
           <div className="lg:col-span-7 h-full">
-            <PerformanceChart data={data.chart} />
+            <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center text-gray-400">
+              시간별/아이템별 성과 추이를 준비 중입니다.
+            </div>
           </div>
         </div>
       </div>
