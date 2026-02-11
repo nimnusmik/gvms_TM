@@ -1,6 +1,6 @@
 import { api } from '@/lib/axios';
-import { PaginatedResponse,} from '../../dashboard/types';
-import { Customer, CustomerParams } from '../types';
+import { PaginatedResponse } from '../../dashboard/types';
+import { SalesAssignment, CustomerParams } from '../types';
 
 export const resetCustomerDB = async () => {
   const response = await api.delete('/customers/reset-db/');
@@ -10,17 +10,20 @@ export const resetCustomerDB = async () => {
 export const customerApi = {
 
   getCustomers: async (params: CustomerParams) => {
-      const { page = 1, status, agentId, search } = params;
+      const { page = 1, status, agentId, secondaryStatus, secondaryAgentId, search } = params;
       
       // URL 파라미터 생성 (URLSearchParams 사용)
       const queryParams = new URLSearchParams();
       queryParams.append('page', page.toString());
+      queryParams.append('stage', '1ST');
       
       if (status && status !== 'ALL') queryParams.append('status', status);
-      if (agentId && agentId !== 'ALL') queryParams.append('assigned_agent', agentId);
+      if (agentId && agentId !== 'ALL') queryParams.append('agent', agentId);
+      if (secondaryStatus && secondaryStatus !== 'ALL') queryParams.append('secondary_status', secondaryStatus);
+      if (secondaryAgentId && secondaryAgentId !== 'ALL') queryParams.append('secondary_agent', secondaryAgentId);
       if (search) queryParams.append('search', search); // 백엔드 검색 구현 시 사용
   
-      const response = await api.get<PaginatedResponse<Customer>>(`/customers/?${queryParams.toString()}`);
+      const response = await api.get<PaginatedResponse<SalesAssignment>>(`/sales/?${queryParams.toString()}`);
       return response.data;
     },
 
@@ -38,9 +41,9 @@ export const customerApi = {
   },
 
   assignAgent: async (customerId: number, agentId: string) => {
-    // 부분 수정(Patch)으로 assigned_agent 필드만 업데이트
-    const response = await api.patch(`/customers/${customerId}/`, {
-      assigned_agent: agentId,
+    // 부분 수정(Patch)으로 agent만 업데이트
+    const response = await api.patch(`/sales/${customerId}/`, {
+      agent: agentId,
       status: 'ASSIGNED' // 배정되면 상태도 '배정됨'으로 자동 변경
     });
     return response.data;
@@ -48,12 +51,27 @@ export const customerApi = {
     
   bulkAssign: async (payload: { ids: number[]; agent_id: string }) => {
     // 백엔드가 url_path='bulk-assign' (하이픈)으로 되어있는지 꼭 확인!
-    const { data } = await api.post('/customers/bulk-assign/', payload);
+    const { data } = await api.post('/sales/bulk-assign/', payload);
     return data;
   },
 
   bulkUnassign: async (ids: number[]) => {
-    const { data } = await api.post('/customers/bulk-unassign/', { ids });
+    const { data } = await api.post('/sales/bulk-unassign/', { ids });
+    return data;
+  },
+
+  bulkDelete: async (ids: number[]) => {
+    const { data } = await api.post('/sales/bulk-delete/', { ids });
+    return data;
+  },
+
+  assignSecondary: async (assignmentId: number, agentId: string) => {
+    const { data } = await api.post(`/sales/${assignmentId}/assign-secondary/`, { agent_id: agentId });
+    return data;
+  },
+
+  updateAssignmentStatus: async (assignmentId: number, status: string) => {
+    const { data } = await api.patch(`/sales/${assignmentId}/`, { status });
     return data;
   },
   // DB 초기화 (이 부분이 빠져있었습니다!)
@@ -65,7 +83,7 @@ export const customerApi = {
 
   // 자동 배정 실행 (관리자용)
   runAutoAssign: async () => {
-    const { data } = await api.post("/customers/run-daily-assign/");
+    const { data } = await api.post("/sales/run-daily-assign/");
     return data;
   },
 };

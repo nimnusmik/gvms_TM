@@ -63,6 +63,8 @@ INSTALLED_APPS = [
     'agents',
     'customers',
     'notices',
+    'sales',
+    'calls',
 
     'django_celery_results',
     'django_filters',

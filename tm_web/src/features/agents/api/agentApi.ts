@@ -11,7 +11,7 @@ export const agentApi = {
   },
 
   // 1. 상담원-배정된 고객들 목록 조회
-  getAgentCustomers: async (agentId: number) => {
+  getAgentCustomers: async (agentId: string) => {
     const response = await api.get<AssignedCustomer[]>(`/agents/${agentId}/customers/`);
     return response.data;
   },
@@ -28,13 +28,13 @@ export const agentApi = {
     return response.data;
   }, 
 
-  updateAgent: async (id: number, data: Partial<Agent>) => {
+  updateAgent: async (id: string, data: Partial<Agent>) => {
     const response = await api.patch(`/agents/${id}/`, data);
     return response.data;
   },
 
   // 5. 퇴사 처리 (fetch -> axios 변경)
-  resignAgent: async (id: number) => {
+  resignAgent: async (id: string) => {
     // axios는 토큰을 알아서 넣어줍니다 (lib/axios 설정 덕분)
     // 400, 500 에러가 나면 알아서 throw 하므로 'if (!ok)' 체크 불필요
     const response = await api.post(`/agents/${id}/resign/`);
@@ -42,11 +42,10 @@ export const agentApi = {
   },
 
   // 6. 완전 삭제 (fetch -> axios 변경)
-  deleteAgent: async (id: number) => {
+  deleteAgent: async (id: string) => {
     // 백엔드에서 에러 메시지를 보내면, UI의 catch(error) 블록에서 
     // error.response.data 로 꺼낼 수 있습니다.
     const response = await api.delete(`/agents/${id}/`);
     return response.data;
   }
 };
-

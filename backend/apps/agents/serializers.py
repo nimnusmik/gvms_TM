@@ -70,6 +70,7 @@ class AgentSerializer(serializers.ModelSerializer):
             'email',      
             'team', 
             'assigned_phone', 
+            'role',
             'status', 
             'daily_cap', 
             'is_auto_assign', 

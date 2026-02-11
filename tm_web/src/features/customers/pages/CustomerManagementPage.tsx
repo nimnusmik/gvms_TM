@@ -10,14 +10,17 @@ import { useCustomerList } from "../hooks/useCustomerList";
 import { customerApi } from "../api/customerApi";
 import { agentApi } from "@/features/agents/api/agentApi";
 import type { Agent } from "@/features/agents/types";
+import { dashboardApi } from "@/features/dashboard/api/dashboardApi";
 
 export default function CustomerManagementPage() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSecondaryModalOpen, setIsSecondaryModalOpen] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [isUploadProcessing, setIsUploadProcessing] = useState(false);
+  const [totalCustomers, setTotalCustomers] = useState<number | null>(null);
 
   const {
     customers,
@@ -25,6 +28,7 @@ export default function CustomerManagementPage() {
     page,
     setPage,
     totalPages,
+    totalCount,
     searchTerm,
     setSearchTerm,
     activeSearch,
@@ -32,6 +36,10 @@ export default function CustomerManagementPage() {
     setStatusFilter,
     agentFilter,
     setAgentFilter,
+    secondaryStatusFilter,
+    setSecondaryStatusFilter,
+    secondaryAgentFilter,
+    setSecondaryAgentFilter,
     applySearch,
     resetFilters,
     reloadPage,
@@ -41,7 +49,7 @@ export default function CustomerManagementPage() {
   // 페이지나 필터가 바뀌면 선택 초기화
   useEffect(() => {
     setSelectedIds([]);
-  }, [page, activeSearch, statusFilter, agentFilter]);
+  }, [page, activeSearch, statusFilter, agentFilter, secondaryStatusFilter, secondaryAgentFilter]);
 
   // 담당자 목록 로딩 (필터용)
   useEffect(() => {
@@ -55,6 +63,18 @@ export default function CustomerManagementPage() {
       }
     };
     fetchAgents();
+  }, []);
+
+  useEffect(() => {
+    const fetchTotalCustomers = async () => {
+      try {
+        const data = await dashboardApi.getStats();
+        setTotalCustomers(data.total_customers ?? null);
+      } catch (error) {
+        console.error("총 고객 수 로딩 실패:", error);
+      }
+    };
+    fetchTotalCustomers();
   }, []);
 
   // 1. 엑셀 업로드 핸들러
@@ -136,11 +156,72 @@ export default function CustomerManagementPage() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (!confirm(`선택한 ${selectedIds.length}건을 삭제하시겠습니까?\n2차 배정이 있으면 함께 삭제됩니다.`)) {
+      return;
+    }
+
+    try {
+      await customerApi.bulkDelete(selectedIds);
+      toast.success("선택된 항목이 삭제되었습니다.");
+      setSelectedIds([]);
+      reloadPage();
+    } catch (error) {
+      toast.error("삭제 중 오류가 발생했습니다.");
+    }
+  };
+
+  const selectedAssignments = customers.filter((assignment) => selectedIds.includes(assignment.id));
+  const secondaryEligible = selectedAssignments.filter(
+    (assignment) => assignment.status === "SUCCESS" && !assignment.secondary_assignment
+  );
+
+  const handleBulkAssignSecondary = async (agentId: string) => {
+    if (secondaryEligible.length === 0) {
+      toast.error("2차 배정 가능한 항목이 없습니다. (SUCCESS 상태만 가능)");
+      return;
+    }
+
+    try {
+      const results = await Promise.allSettled(
+        secondaryEligible.map((assignment) => customerApi.assignSecondary(assignment.id, agentId))
+      );
+
+      const successCount = results.filter((result) => result.status === "fulfilled").length;
+      const failCount = results.length - successCount;
+
+      if (successCount > 0) {
+        toast.success(`2차 배정 완료: ${successCount}건`);
+      }
+      if (failCount > 0) {
+        toast.error(`2차 배정 실패: ${failCount}건`);
+      }
+
+      setSelectedIds([]);
+      setIsSecondaryModalOpen(false);
+      reloadPage();
+    } catch (error) {
+      toast.error("2차 배정 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleUpdateSecondaryStatus = async (secondaryId: number, status: string) => {
+    try {
+      await customerApi.updateAssignmentStatus(secondaryId, status);
+      toast.success("2차 상태가 변경되었습니다.");
+      reloadPage();
+    } catch (error) {
+      toast.error("2차 상태 변경 실패");
+    }
+  };
+
+  const displayTotalCount = totalCustomers ?? totalCount;
+
   return (
     <div className="p-6 space-y-4">
       {/* 상단 툴바 (검색, 필터, 업로드, DB초기화) */}
       <CustomerToolbar
-        totalCount={customers.length}
+        totalCount={displayTotalCount}
         isLoading={isLoading}
         isUploading={isUploading}
         fileInputRef={fileInputRef}
@@ -153,13 +234,19 @@ export default function CustomerManagementPage() {
         onStatusChange={setStatusFilter}
         agentFilter={agentFilter}
         onAgentChange={setAgentFilter}
+        secondaryStatusFilter={secondaryStatusFilter}
+        onSecondaryStatusChange={setSecondaryStatusFilter}
+        secondaryAgentFilter={secondaryAgentFilter}
+        onSecondaryAgentChange={setSecondaryAgentFilter}
         agents={agents}
         uploadProcessing={isUploadProcessing}
         onDismissUploadProcessing={() => setIsUploadProcessing(false)}
         showReset={
           Boolean(activeSearch) ||
           statusFilter !== "ALL" ||
-          agentFilter !== "ALL"
+          agentFilter !== "ALL" ||
+          secondaryStatusFilter !== "ALL" ||
+          secondaryAgentFilter !== "ALL"
         }
         onReset={resetFilters}
       />
@@ -170,6 +257,9 @@ export default function CustomerManagementPage() {
           selectedCount={selectedIds.length}
           onAssign={() => setIsModalOpen(true)}
           onUnassign={handleBulkUnassign} // 👈 여기가 핵심! 연결되었습니다.
+          onDelete={handleBulkDelete}
+          secondaryCount={secondaryEligible.length}
+          onAssignSecondary={() => setIsSecondaryModalOpen(true)}
         />
       )}
 
@@ -182,6 +272,7 @@ export default function CustomerManagementPage() {
         selectedIds={selectedIds}
         onSelectAll={handleSelectAll}
         onSelectRow={handleSelectRow}
+        onUpdateSecondaryStatus={handleUpdateSecondaryStatus}
         onPrevPage={() => setPage(Math.max(1, page - 1))}
         onNextPage={() => setPage(Math.min(totalPages, page + 1))}
       />
@@ -192,6 +283,16 @@ export default function CustomerManagementPage() {
         onClose={() => setIsModalOpen(false)}
         onConfirm={handleBulkAssign}
         selectedCount={selectedIds.length}
+      />
+
+      <AssignAgentModal 
+        isOpen={isSecondaryModalOpen}
+        onClose={() => setIsSecondaryModalOpen(false)}
+        onConfirm={handleBulkAssignSecondary}
+        selectedCount={secondaryEligible.length}
+        title="2차 담당자 배정"
+        description="SUCCESS 상태의 항목만 2차 담당자 배정이 가능합니다."
+        confirmLabel="2차 배정"
       />
     </div>
   );

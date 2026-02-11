@@ -1,7 +1,6 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
 
@@ -9,12 +8,17 @@ from django.contrib.auth import get_user_model
 from django.db import IntegrityError 
 
 from django.db import transaction
-from .models import Agent, AgentStatus
-from .serializers import AgentAdminSerializer, AccountSimpleSerializer, AgentSerializer
-from django.db.models import Count
+from .models import Agent
+from .serializers import AgentSerializer
+from django.db.models import Count, Q, Sum
+from django.db.models.functions import Coalesce, TruncDate
+from django.utils import timezone
+from datetime import timedelta
 
-from apps.customers.services import run_auto_assign_logic, run_auto_assign_batch_all
-
+from apps.sales.services import assign_leads_to_agent 
+from apps.sales.models import SalesAssignment
+from apps.sales.serializers import SalesAssignmentSerializer
+from apps.calls.models import CallLog
 
 User = get_user_model()
 
@@ -23,7 +27,7 @@ class AgentViewSet(viewsets.ModelViewSet):
     queryset = Agent.objects.select_related('user').all().order_by('-created_at')    
 
     # 2. 기본 시리얼라이저: 관리자용 (생성/수정 등 모든 필드 포함)
-    serializer_class = AgentAdminSerializer
+    serializer_class = AgentSerializer
 
     pagination_class = None # 상담원 API만 페이지네이션 없이 '통짜 배열'을 줍니다.
     
@@ -82,21 +86,18 @@ class AgentViewSet(viewsets.ModelViewSet):
     def customers(self, request, pk=None):
         agent = self.get_object()
         
-        # related_name='customers' 라고 가정 (만약 에러나면 customer_set으로 변경)
-        if hasattr(agent, 'customers'):
-            my_customers = agent.customers.all().order_by('-created_at')
-        else:
-            my_customers = agent.customer_set.all().order_by('-created_at')
-
-        serializer = CustomerSerializer(my_customers, many=True)
+        my_assignments = SalesAssignment.objects.filter(agent=agent).select_related('customer').annotate(
+            call_count=Count('call_logs')
+        ).order_by('-updated_at')
+        serializer = SalesAssignmentSerializer(my_assignments, many=True)
         return Response(serializer.data)
-
-    queryset = Agent.objects.all()
-    serializer_class = AgentSerializer
 
     def get_queryset(self):
         return Agent.objects.annotate(
-            assigned_count=Count('customers')
+            assigned_count=Count(
+                'assignments',
+                filter=Q(assignments__status__in=['ASSIGNED', 'TRYING'])
+            )
         ).order_by('-created_at')
 
     # ----------------------------------------------------------------
@@ -106,8 +107,8 @@ class AgentViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         agent = self.get_object()
 
-        if agent.customers.exists(): 
-            print(f"🚨 삭제 차단됨! 잔류 고객: {list(agent.customers.values('id', 'name', 'status'))}")
+        if agent.assignments.exists():
+            print(f"🚨 삭제 차단됨! 잔류 배정: {list(agent.assignments.values('id', 'status'))}")
             return Response(
                  {"error": "배정된 고객이나 상담 이력이 있는 직원은 삭제할 수 없습니다. 대신 '퇴사' 처리를 이용해주세요."}, 
                  status=status.HTTP_400_BAD_REQUEST
@@ -145,16 +146,13 @@ class AgentViewSet(viewsets.ModelViewSet):
             
             # 3. [핵심] 배정된 고객 회수 (ASSIGNED -> NEW, 담당자 None)
             # 완료(COMPLETED)된 건은 건드리지 않고, 진행 중인 건만 회수합니다.
-            if hasattr(agent, 'customers'):
-                active_customers = agent.customers.filter(status='ASSIGNED')
-            else:
-                active_customers = agent.customer_set.filter(status='ASSIGNED')
+            active_assignments = agent.assignments.filter(status__in=['ASSIGNED', 'TRYING', 'HOLD'])
             
             # 회수된 고객 수 저장 (메시지용)
-            released_count = active_customers.count()
+            released_count = active_assignments.count()
             
             # 일괄 업데이트 (담당자 해제 및 상태 초기화)
-            active_customers.update(assigned_agent=None, status='NEW')
+            active_assignments.update(agent=None, status='NEW')
 
         return Response({
             "message": f"{agent.user.name} 님의 퇴사 처리가 완료되었습니다. (고객 {released_count}명 배정 취소됨)",
@@ -162,72 +160,152 @@ class AgentViewSet(viewsets.ModelViewSet):
             "released_count": released_count
         })
 
-    # ----------------------------------------------------------------
-    # 🌟 기능 6: 퇴사 처리 (Soft Delete)
-    # POST /api/v1/agents/{id}/resign/
-    # ----------------------------------------------------------------
-    @action(detail=False, methods=['get'], url_path='dashboard_stats')
+    
+    @action(detail=False, methods=['get'])
     def dashboard_stats(self, request):
-        from apps.customers.models import Customer 
+        """
+        📊 대시보드용 통합 통계 API
+        - 요청: GET /api/v1/agents/dashboard_stats/?team=SALES_TM
+        """
+        today = timezone.localtime().date()
+        team_filter = request.query_params.get('team')
 
-        # 1. [상담원] 통계
-        total_agents = Agent.objects.count()
-        active_agents = Agent.objects.exclude(status='OFFLINE').count()
+        # 1. 상담원 리스트
+        agents = Agent.objects.all()
+        
+        if team_filter:
+            agents = agents.filter(team=team_filter)
 
-        # 2. [고객] 통계
-        total_customers = Customer.objects.count()
-        success_customers = Customer.objects.filter(status=Customer.Status.SUCCESS).count()
+        agent_stats = agents.values(
+            'agent_id', 'user__name', 'team', 'status', 'daily_cap', 'assigned_phone', 'is_auto_assign'
+        )
 
+        call_stats = CallLog.objects.filter(
+            call_start__date=today
+        ).values(
+            'agent_id'
+        ).annotate(
+            today_total=Count('id'),
+            today_success=Count('id', filter=Q(result_type='SUCCESS')),
+            today_duration=Coalesce(Sum('call_duration'), 0)
+        )
 
-        # 3. 성공률
-        if total_customers > 0:
-            success_rate = (success_customers / total_customers) * 100
-        else:
+        call_stats_map = {row['agent_id']: row for row in call_stats}
+
+        # 2. [데이터 가공] 프론트엔드 포맷에 맞게 변환
+        cards_data = []
+        table_data = []
+
+        for stat in agent_stats:
+            call_stat = call_stats_map.get(stat['agent_id'], {
+                'today_total': 0,
+                'today_success': 0,
+                'today_duration': 0,
+            })
+
+            # 성공률 계산 (0으로 나누기 방지)
             success_rate = 0
+            if call_stat['today_total'] > 0:
+                success_rate = round((call_stat['today_success'] / call_stat['today_total']) * 100, 1)
 
-        data = {
+            # 초 -> MM:SS 형식 변환
+            duration_str = self._format_duration(call_stat['today_duration'])
+
+            # (A) 하단 카드용 데이터
+            cards_data.append({
+                'id': str(stat['agent_id']),
+                'name': stat['user__name'],
+                'team': stat['team'], # 혹은 get_team_display() 필요시 별도 처리
+                'status': stat['status'],
+                'todayCalls': call_stat['today_total'],
+                'successRate': success_rate,
+                'dailyGoal': stat['daily_cap'],
+                'totalCallTime': duration_str,
+                'avatar': None, # 프로필 이미지 URL이 있다면 추가
+
+                'isAutoAssign': stat['is_auto_assign'], 
+            })
+
+            # (B) 좌상단 테이블용 데이터
+            table_data.append({
+                'name': stat['user__name'],
+                'successRate': success_rate,
+                'avgCallTime': self._calculate_avg_time(call_stat['today_duration'], call_stat['today_total']),
+                'contractCount': call_stat['today_success'] # 일단 성공 콜 수를 계약 수로 간주
+            })
+
+        # 3. [차트 데이터] 최근 7일간 추이
+        seven_days_ago = today - timedelta(days=6)
+        
+        daily_trends = CallLog.objects.filter(
+            call_start__date__gte=seven_days_ago
+        ).annotate(
+            date=TruncDate('call_start')
+        ).values('date').annotate(
+            totalCalls=Count('id'),
+            successCount=Count('id', filter=Q(result_type='SUCCESS')),
+            failCount=Count('id', filter=Q(result_type='REJECT'))
+        ).order_by('date')
+
+        chart_data = []
+        for trend in daily_trends:
+            chart_data.append({
+                'date': trend['date'].strftime('%m/%d'), # 02/09 형식
+                'totalCalls': trend['totalCalls'],
+                'successCount': trend['successCount'],
+                'failCount': trend['failCount']
+            })
+
+        # 4. 상단 통계 카드용 요약
+        total_agents = agents.count()
+        active_agents = agents.exclude(status='OFFLINE').count()
+        total_customers = SalesAssignment.objects.count()
+        success_customers = SalesAssignment.objects.filter(status='SUCCESS').count()
+        today_total_calls = CallLog.objects.filter(call_start__date=today).count()
+        success_rate = round((success_customers / total_customers) * 100, 1) if total_customers > 0 else 0
+
+        return Response({
             "total_customers": total_customers,
             "active_agents": active_agents,
             "total_agents": total_agents,
-            "success_rate": round(success_rate, 1)
-        }
-        
-        return Response(data)
+            "success_rate": success_rate,
+            "today_total_calls": today_total_calls,
+            "cards": cards_data,
+            "table": table_data,
+            "chart": chart_data
+        })
 
+    def _format_duration(self, seconds):
+        """초 -> MM:SS 변환 헬퍼"""
+        if not seconds:
+            return "00:00"
+        m, s = divmod(seconds, 60)
+        h, m = divmod(m, 60)
+        if h > 0:
+            return f"{h:02d}:{m:02d}:{s:02d}"
+        return f"{m:02d}:{s:02d}"
 
-    def perform_create(self, serializer):
-        try:
-            # 1. 상담원 저장 시도
-            agent = serializer.save()
-            
-            # 2. [시나리오 A] 저장 성공 시 자동 배정 로직 실행
-            if agent.is_auto_assign:
-                from apps.customers.services import run_auto_assign_logic
-                run_auto_assign_logic(agent)
-                
-        except IntegrityError:
-            # 🚨 이미 존재하는 계정일 경우 발생하는 DB 에러를 잡아서
-            # 프론트엔드에게 "400 Bad Request"로 친절하게 알려줍니다.
-            raise ValidationError({"detail": "이미 상담원으로 등록된 계정입니다. (중복 등록 불가)"})
+    def _calculate_avg_time(self, total_seconds, count):
+        """평균 통화 시간 계산"""
+        if count == 0:
+            return "00:00"
+        avg_seconds = int(total_seconds / count)
+        return self._format_duration(avg_seconds)
 
-    def perform_update(self, serializer):
-        # 수정 시에도(예: 팀 변경, Cap 증가 등) 배정 로직을 돌릴지 결정
-        agent = serializer.save()
-        
-        # 예: 배정 기능이 꺼져있다가 켜진 경우 즉시 배정
-        if agent.is_auto_assign:
-            run_auto_assign_logic(agent)
-
-    # POST /api/v1/agents/run_daily_assign/
     @action(detail=False, methods=['post'], url_path='run-daily-assign')
     def run_daily_assign(self, request):
-        # 1. 대상 상담원 선정 (퇴사자 제외, 자동배정 켜진 사람)
+        # 1. 대상 선정: 퇴사자 제외 AND 자동배정 켜진 사람(is_auto_assign=True)
         active_agents = Agent.objects.exclude(status='RESIGNED').filter(is_auto_assign=True).order_by('created_at')
 
-        assigned_map = run_auto_assign_batch_all(list(active_agents))
-        total_assigned = sum(assigned_map.values())
-        agent_count = sum(1 for v in assigned_map.values() if v > 0)
+        total_assigned = 0
+        participated_agents = 0
+
+        for agent in active_agents:
+            count = assign_leads_to_agent(agent) 
+            if count > 0:
+                total_assigned += count
+                participated_agents += 1
 
         return Response({
-            "message": f"총 {len(active_agents)}명 중 {agent_count}명에게 {total_assigned}건의 DB가 리필되었습니다."
+            "message": f"총 {len(active_agents)}명 중 {participated_agents}명에게 {total_assigned}건의 DB가 리필되었습니다."
         })

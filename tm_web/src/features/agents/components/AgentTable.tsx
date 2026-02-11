@@ -32,39 +32,29 @@ export function AgentTable({ agents, isLoading, onEdit }: AgentTableProps) {
         <TableBody>
           {isLoading ? (
             <TableRow>
-              {/* 👇 헤더 개수가 8개라서 8로 수정 */}
               <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                 데이터 로딩 중...
               </TableCell>
             </TableRow>
           ) : agents.length === 0 ? (
             <TableRow>
-              {/* 👇 여기도 8로 수정 */}
               <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                 등록된 상담원이 없습니다.
               </TableCell>
             </TableRow>
           ) : (
             agents.map((agent) => (
-              <TableRow key={agent.agent_id || agent.agent_id}> {/* id가 없을 경우 대비 */}
-                {/* 1. 상태 */}
-                <TableCell>
-                  <StatusBadge status={agent.status} />
-                </TableCell>
-
-                {/* 2. 상담원 정보 */}
+              <TableRow key={agent.agent_id}>
+                {/* 셀 사이의 주석을 태그 안으로 넣거나 제거하여 텍스트 노드 발생 방지 */}
+                <TableCell><StatusBadge status={agent.status} /></TableCell>
+                
                 <TableCell>
                   <div className="flex flex-col justify-center">
-                    <div className="font-medium text-sm text-gray-900">
-                        {agent.name}
-                    </div>
-                    <div className="text-xs text-gray-400 mt-0.5">
-                        {agent.email}
-                    </div>
+                    <div className="font-medium text-sm text-gray-900">{agent.name}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">{agent.email}</div>
                   </div>
                 </TableCell>
 
-                {/* ✨ 3. 직통 번호 (포맷팅 적용) */}
                 <TableCell>
                   {agent.assigned_phone ? (
                     <span className="text-gray-900 font-mono text-sm">
@@ -75,41 +65,26 @@ export function AgentTable({ agents, isLoading, onEdit }: AgentTableProps) {
                   )}
                 </TableCell>
 
-                {/* 4. 소속 팀 */}
-                <TableCell>
-                  <TeamBadge team={agent.team} />
-                </TableCell>
+                <TableCell><TeamBadge team={agent.team} /></TableCell>
 
-                {/* 5. 사번 */}
                 <TableCell className="text-gray-500 text-sm font-mono">
                   {agent.code || "-"}
                 </TableCell>
 
-                {/* 6. 배정량 */}
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-1.5 text-sm">
-                    <span className={`font-bold ${
-                      (agent.assigned_count || 0) >= agent.daily_cap 
-                        ? "text-red-600" 
-                        : "text-blue-600"
-                    }`}>
+                    <span className={`font-bold ${(agent.assigned_count || 0) >= agent.daily_cap ? "text-red-600" : "text-blue-600"}`}>
                       {agent.assigned_count || 0}
                     </span>
-                    
                     <span className="text-gray-300">/</span>
-                    
-                    <span className="text-gray-600">
-                      {agent.daily_cap} 건
-                    </span>
+                    <span className="text-gray-600">{agent.daily_cap} 건</span>
                   </div>
                 </TableCell>
 
-                {/* 7. 권한 */}
                 <TableCell className="text-gray-500 text-xs uppercase">
                   {agent.role || "USER"}
                 </TableCell>
 
-                {/* 8. 작업 버튼 */}
                 <TableCell className="text-right">
                   <Button variant="ghost" size="icon" onClick={() => onEdit(agent)}>
                     <MoreHorizontal className="w-4 h-4 text-gray-500" />
