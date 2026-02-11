@@ -33,9 +33,19 @@ export const AgentStatusCard = ({ agent }: AgentStatusCardProps) => {
   const statusColor = STATUS_COLORS[agent.status] || 'bg-gray-100 text-gray-500';
   const safeGoal = agent.dailyGoal || 0;
   const progressPercent = safeGoal > 0 ? Math.min((agent.todayCalls / safeGoal) * 100, 100) : 0;
+  const isSalesMain = agent.team === 'SALES_MAIN';
+  const isSalesTm = agent.team === 'SALES_TM';
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+    <div
+      className={`rounded-xl border p-5 shadow-sm transition-shadow hover:shadow-md ${
+        isSalesMain
+          ? 'border-rose-400 bg-white'
+          : isSalesTm
+            ? 'border-blue-300 bg-white'
+            : 'border-gray-200 bg-white'
+      }`}
+    >
       {/* 헤더: 이름, 팀, 상태뱃지 */}
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-3">

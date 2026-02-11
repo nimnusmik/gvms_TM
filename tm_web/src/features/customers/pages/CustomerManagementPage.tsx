@@ -10,6 +10,7 @@ import { useCustomerList } from "../hooks/useCustomerList";
 import { customerApi } from "../api/customerApi";
 import { agentApi } from "@/features/agents/api/agentApi";
 import type { Agent } from "@/features/agents/types";
+import { dashboardApi } from "@/features/dashboard/api/dashboardApi";
 
 export default function CustomerManagementPage() {
   const [isUploading, setIsUploading] = useState(false);
@@ -19,6 +20,7 @@ export default function CustomerManagementPage() {
   const [isSecondaryModalOpen, setIsSecondaryModalOpen] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [isUploadProcessing, setIsUploadProcessing] = useState(false);
+  const [totalCustomers, setTotalCustomers] = useState<number | null>(null);
 
   const {
     customers,
@@ -61,6 +63,18 @@ export default function CustomerManagementPage() {
       }
     };
     fetchAgents();
+  }, []);
+
+  useEffect(() => {
+    const fetchTotalCustomers = async () => {
+      try {
+        const data = await dashboardApi.getStats();
+        setTotalCustomers(data.total_customers ?? null);
+      } catch (error) {
+        console.error("총 고객 수 로딩 실패:", error);
+      }
+    };
+    fetchTotalCustomers();
   }, []);
 
   // 1. 엑셀 업로드 핸들러
@@ -201,11 +215,13 @@ export default function CustomerManagementPage() {
     }
   };
 
+  const displayTotalCount = totalCustomers ?? totalCount;
+
   return (
     <div className="p-6 space-y-4">
       {/* 상단 툴바 (검색, 필터, 업로드, DB초기화) */}
       <CustomerToolbar
-        totalCount={totalCount}
+        totalCount={displayTotalCount}
         isLoading={isLoading}
         isUploading={isUploading}
         fileInputRef={fileInputRef}
