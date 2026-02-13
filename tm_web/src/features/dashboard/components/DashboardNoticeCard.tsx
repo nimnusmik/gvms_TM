@@ -106,59 +106,59 @@ export function DashboardNoticeCard({ rows, isLoading }: DashboardNoticeCardProp
               return (
                 <div
                   key={`${row.name}-${index}`}
-                  className={`group rounded-2xl border shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${
+                  className={`group rounded-2xl border p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${
                     isLeader
                       ? "border-amber-200/70 bg-gradient-to-r from-amber-50 via-white to-amber-50"
                       : "border-slate-100 bg-white"
                   }`}
                 >
-                  <div className="flex items-center gap-3 px-3 py-2">
-                    <div
-                      className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${style.badge} ring-1 ${style.ring}`}
-                    >
-                      <Icon className={`h-4 w-4 ${style.text}`} />
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={`flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br ${style.badge} ring-1 ${style.ring}`}
+                      >
+                        <Icon className={`h-4 w-4 ${style.text}`} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[11px] font-semibold ${isLeader ? "text-amber-700" : "text-slate-500"}`}>
+                            {style.label}
+                          </span>
+                          <span className="truncate text-[15px] font-semibold text-slate-900">
+                            {row.name}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-[11px] text-slate-500">
+                          동의 {successCount} · 거절 {rejectCount} · 부재 {absenceCount} · 결번 {invalidCount}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[11px] font-semibold ${isLeader ? "text-amber-700" : "text-slate-500"}`}>
-                          {style.label}
+                    <div className="flex flex-col items-end gap-1 text-[11px]">
+                      {!isLeader && tieNote && (
+                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[12px] font-semibold text-indigo-600">
+                          {tieNote}
                         </span>
-                        <span className="truncate text-[15px] font-semibold text-slate-900">
-                          {row.name}
+                      )}
+                      {!isLeader && !tieNote && contractGap > 0 && (
+                        <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[12px] font-semibold text-rose-600">
+                          1위와 {contractGap}건 차이
                         </span>
-                      </div>
-                      <div className="mt-2 flex items-end justify-between">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-[11px] font-semibold text-slate-500">계약</span>
-                            <span className="text-2xl font-bold text-slate-900">{row.contractCount}</span>
-                            <span className="text-[11px] font-semibold text-slate-500">건</span>
-                          </div>
-                          <div className="text-[11px] font-medium text-slate-500">
-                            동의 {successCount} · 거절 {rejectCount} · 부재 {absenceCount} · 결번 {invalidCount}
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-0.5 text-[11px]">
-                          {!isLeader && tieNote && (
-                            <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[12px] font-semibold text-indigo-600">
-                              {tieNote}
-                            </span>
-                          )}
-                          {!isLeader && !tieNote && contractGap > 0 && (
-                            <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[12px] font-semibold text-rose-600">
-                              1위와 {contractGap}건 차이
-                            </span>
-                          )}
-                          <div className="flex items-center gap-1.5 text-slate-600">
-                            <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">평균 통화</span>
-                            <span className="text-[12px] font-semibold text-slate-700">{row.avgCallTime}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-emerald-700">
-                            <span className="text-[11px] font-medium uppercase tracking-wide text-emerald-600/70">성공률</span>
-                            <span className="text-[12px] font-semibold">{row.successRate}%</span>
-                          </div>
-                        </div>
-                      </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-3 gap-3">
+                    <div className="rounded-xl bg-slate-50 px-3 py-2">
+                      <div className="text-[11px] font-semibold text-slate-500">계약</div>
+                      <div className="mt-0.5 text-xl font-bold text-slate-900">{row.contractCount}건</div>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 px-3 py-2">
+                      <div className="text-[11px] font-semibold text-slate-500">평균 통화</div>
+                      <div className="mt-0.5 text-[15px] font-semibold text-slate-800">{row.avgCallTime}</div>
+                    </div>
+                    <div className="rounded-xl bg-emerald-50 px-3 py-2">
+                      <div className="text-[11px] font-semibold text-emerald-700">성공률</div>
+                      <div className="mt-0.5 text-[15px] font-semibold text-emerald-700">{row.successRate}%</div>
                     </div>
                   </div>
                 </div>
