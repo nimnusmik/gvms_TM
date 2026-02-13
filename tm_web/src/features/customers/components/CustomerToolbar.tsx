@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { RefreshCcw, Search, UploadCloud, X, Loader2, Info } from "lucide-react";
 import type { ChangeEvent, KeyboardEvent, RefObject } from "react";
+import { PageHeaderCard } from "@/components/common/PageHeaderCard";
 
 import { CustomerResetDialog } from "./CustomerResetDialog";
 import type { Agent } from "@/features/agents/types";
@@ -60,50 +61,50 @@ export function CustomerToolbar({
   return (
     <div className="flex flex-col gap-4">
       {/* 상단 헤더 영역 */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">리드 배정 관리</h1>
-          <p className="text-sm text-gray-500 mt-1">
+      <PageHeaderCard
+        title="리드 배정 관리"
+        description={
+          <>
             총 <span className="font-bold text-gray-900">{totalCount}</span>개의 리드가 조회되었습니다.
-          </p>
-        </div>
+          </>
+        }
+        right={
+          <div className="flex gap-2">
+            {/* ✨ 1. DB 초기화 버튼 추가 (성공 시 onRefresh 호출하여 목록 갱신) */}
+            <CustomerResetDialog onSuccess={onRefresh} />
 
-        {/* 우측 상단 액션 버튼 그룹 */}
-        <div className="flex gap-2">
-          {/* ✨ 1. DB 초기화 버튼 추가 (성공 시 onRefresh 호출하여 목록 갱신) */}
-          <CustomerResetDialog onSuccess={onRefresh} />
+            {/* 2. 엑셀 업로드 (Hidden Input + Button) */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={onFileChange}
+              className="hidden"
+              accept=".xlsx, .xls"
+            />
 
-          {/* 2. 엑셀 업로드 (Hidden Input + Button) */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={onFileChange}
-            className="hidden"
-            accept=".xlsx, .xls"
-          />
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="shadow-sm gap-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+            >
+              <UploadCloud className="mr-2 h-4 w-4" />
+              {isUploading ? "업로드 중..." : "엑셀 업로드"}
+            </Button>
 
-          <Button
-            variant="default"
-            size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            className="shadow-sm gap-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-          >
-            <UploadCloud className="mr-2 h-4 w-4" />
-            {isUploading ? "업로드 중..." : "엑셀 업로드"}
-          </Button>
-
-          {/* 3. 새로고침 버튼 */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onRefresh}
-            title="새로고침"
-          >
-            <RefreshCcw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-          </Button>
-        </div>
-      </div>
+            {/* 3. 새로고침 버튼 */}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={onRefresh}
+              title="새로고침"
+            >
+              <RefreshCcw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+        }
+      />
 
       {/* 하단 검색 및 필터 영역 */}
       <div className="flex flex-wrap items-center gap-2 bg-white p-3 rounded-lg border shadow-sm">

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Search, UserPlus, RefreshCw } from "lucide-react";
 import { agentApi } from "../api/agentApi";
 import type { Agent } from "../types";
+import { PageHeaderCard } from "@/components/common/PageHeaderCard";
 
 // 분리한 컴포넌트들 불러오기
 import { AgentTable } from "../components/AgentTable";
@@ -54,17 +55,20 @@ export default function AgentManagementPage() {
     <div className="p-6 space-y-6">
       {/* --- 상단 헤더 & 툴바 --- */}
       <div className="flex flex-col gap-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900">상담원 관리</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              현재 활동 중인 상담원 <span className="font-bold text-blue-600">{agents.length}명</span>을 관리합니다.
-            </p>
-          </div>
-          <Button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
-            <UserPlus className="w-4 h-4 mr-2" /> 상담원 신규 등록
-          </Button>
-        </div>
+        <PageHeaderCard
+          title="상담원 관리"
+          description={
+            <>
+              현재 활동 중인 상담원{" "}
+              <span className="font-bold text-blue-600">{agents.length}명</span>을 관리합니다.
+            </>
+          }
+          right={
+            <Button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
+              <UserPlus className="w-4 h-4 mr-2" /> 상담원 신규 등록
+            </Button>
+          }
+        />
 
         <div className="flex items-center gap-2 bg-white p-3 rounded-lg border shadow-sm">
           <div className="relative flex-1 max-w-sm">

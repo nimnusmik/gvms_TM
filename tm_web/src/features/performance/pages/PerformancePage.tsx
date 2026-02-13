@@ -4,6 +4,7 @@ import { MetricsTable } from "../components/MetricsTable";
 import { AgentStatusCard } from "../components/AgentStatusCard";
 import { AgentTrendChart } from "../components/AgentTrendChart";
 import { AgentCard, PerformanceData } from  "../types/index"
+import { PageHeaderCard } from "@/components/common/PageHeaderCard";
 
 export default function PerformancePage() {
   // 상태 관리
@@ -81,36 +82,33 @@ export default function PerformancePage() {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 text-white p-6 shadow-lg border border-slate-700/60">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h1 className="mt-3 text-2xl font-bold tracking-tight">성과 현황</h1>
-            <p className="mt-1 text-sm text-slate-200/80">
-              상담원 운영 상태와 실시간 지표를 한 화면에서 확인합니다.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-200/80">
-            <span className="rounded-full bg-white/10 px-3 py-1">
+      <PageHeaderCard
+        title="성과 현황"
+        description="상담원 운영 상태와 실시간 지표를 한 화면에서 확인합니다."
+        variant="dark"
+        right={
+          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+            <span className="rounded-full bg-slate-100 px-3 py-1">
               총원 {totalAgents}명
             </span>
-            <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-emerald-200">
+            <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
               ONLINE {onlineCount}
             </span>
-            <span className="rounded-full bg-amber-500/20 px-3 py-1 text-amber-200">
+            <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
               BUSY {busyCount}
             </span>
-            <span className="rounded-full bg-slate-500/20 px-3 py-1 text-slate-200">
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
               BREAK {breakCount}
             </span>
-            <span className="rounded-full bg-slate-700/40 px-3 py-1 text-slate-300">
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
               OFFLINE {offlineCount}
             </span>
-            <span className="rounded-full bg-white/10 px-3 py-1">
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
               업데이트: {lastUpdated ? lastUpdated.toLocaleTimeString() : '-'}
             </span>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* 2. 상단 구역 */}
       <div className="mt-8">

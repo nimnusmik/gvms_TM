@@ -2,9 +2,9 @@
 
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageHeaderCard } from "@/components/common/PageHeaderCard";
 
 // 컴포넌트들
-import { DashboardHeader } from "../components/DashboardHeader";
 import { DashboardStatGrid } from "../components/DashboardStatGrid";
 import { DashboardNoticeCard } from "../components/DashboardNoticeCard";
 import { PerformanceChart } from "@/features/dashboard/components/PerformanceChart";
@@ -20,12 +20,10 @@ export default function DashboardOverviewPage() {
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#eef2ff_0%,_#f8fafc_42%,_#ffffff_100%)] p-6 space-y-8">
       {/* 헤더 */}
-      <div className="rounded-2xl border border-slate-200/70 bg-white/80 backdrop-blur px-6 py-5 shadow-sm">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-            <DashboardHeader />
-          </div>
-
+      <PageHeaderCard
+        title="대시보드"
+        description="Global Vision TM 센터의 실시간 운영 현황입니다."
+        right={
           <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
             <div className="flex flex-col items-end mr-2">
               <span className="text-[11px] uppercase tracking-wider text-slate-400">Last Updated</span>
@@ -43,8 +41,8 @@ export default function DashboardOverviewPage() {
               <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             </Button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* 📊 통계 카드 그리드 */}
       <DashboardStatGrid stats={stats} isLoading={isLoading} />
