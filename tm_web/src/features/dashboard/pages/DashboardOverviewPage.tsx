@@ -8,6 +8,7 @@ import { PageHeaderCard } from "@/components/common/PageHeaderCard";
 import { DashboardStatGrid } from "../components/DashboardStatGrid";
 import { DashboardNoticeCard } from "../components/DashboardNoticeCard";
 import { PerformanceChart } from "@/features/dashboard/components/PerformanceChart";
+import { DashboardPullRequestCard } from "@/features/dashboard/components/DashboardPullRequestCard";
 
 // 훅 및 유틸리티
 import { useDashboardStats } from "../hooks/useDashboardStats";
@@ -43,6 +44,8 @@ export default function DashboardOverviewPage() {
           </div>
         }
       />
+
+      <DashboardPullRequestCard />
 
       {/* 📊 통계 카드 그리드 */}
       <DashboardStatGrid stats={stats} isLoading={isLoading} />

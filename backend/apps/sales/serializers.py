@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import SalesAssignment
+from .models import SalesAssignment, SalesPullRequest
 from apps.customers.serializers import CustomerSerializer
 from apps.agents.models import Agent
 
@@ -76,3 +76,58 @@ class SalesAssignmentSerializer(serializers.ModelSerializer):
             'assigned_at': secondary.assigned_at,
             'updated_at': secondary.updated_at,
         }
+
+# [2] 땡겨오기 신청/승인 기록
+class SalesPullRequestSerializer(serializers.ModelSerializer):
+    agent_id = serializers.SerializerMethodField()
+    agent_name = serializers.SerializerMethodField()
+    agent_code = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    processed_by_id = serializers.SerializerMethodField()
+    processed_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SalesPullRequest
+        fields = [
+            'id',
+            'agent',
+            'agent_id',
+            'agent_name',
+            'agent_code',
+            'requested_count',
+            'approved_count',
+            'status',
+            'status_display',
+            'request_note',
+            'reject_reason',
+            'processed_by',
+            'processed_by_id',
+            'processed_by_name',
+            'processed_at',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = [
+            'agent',
+            'approved_count',
+            'status',
+            'processed_by',
+            'processed_at',
+            'created_at',
+            'updated_at',
+        ]
+
+    def get_agent_id(self, obj):
+        return str(obj.agent.agent_id) if obj.agent else None
+
+    def get_agent_name(self, obj):
+        return obj.agent.user.name if obj.agent and obj.agent.user else None
+
+    def get_agent_code(self, obj):
+        return obj.agent.code if obj.agent else None
+
+    def get_processed_by_id(self, obj):
+        return str(obj.processed_by.agent_id) if obj.processed_by else None
+
+    def get_processed_by_name(self, obj):
+        return obj.processed_by.user.name if obj.processed_by and obj.processed_by.user else None

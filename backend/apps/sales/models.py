@@ -54,10 +54,43 @@ class SalesAssignment(models.Model):
             models.Index(fields=['status']), # 땡겨오기 속도 향상
         ]
 
-# [2] 통화 로그 (정산용)
+# [2] DB 땡겨오기 신청/승인 기록
+class SalesPullRequest(models.Model):
+    class Status(models.TextChoices):
+        PENDING = 'PENDING', '승인 대기'
+        APPROVED = 'APPROVED', '승인'
+        REJECTED = 'REJECTED', '거절'
+
+    agent = models.ForeignKey(Agent, on_delete=models.CASCADE, related_name='pull_requests')
+    requested_count = models.IntegerField(default=0, verbose_name="요청 수량")
+    approved_count = models.IntegerField(default=0, verbose_name="승인 배정 수량")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    request_note = models.TextField(blank=True, default="", verbose_name="요청 사유")
+    reject_reason = models.TextField(blank=True, default="", verbose_name="거절 사유")
+    processed_by = models.ForeignKey(
+        Agent,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='processed_pull_requests',
+        verbose_name="처리자"
+    )
+    processed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'tm_sales_pull_requests'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', 'created_at'], name='sales_pull_status_created_idx'),
+            models.Index(fields=['agent', 'status'], name='sales_pull_agent_status_idx'),
+        ]
+
+# [3] 통화 로그 (정산용)
 # Call 모델로 이사 감
 
-# [3] 자동 배정 시스템 로그 (sales로 이동됨)
+# [4] 자동 배정 시스템 로그 (sales로 이동됨)
 class AssignmentLog(models.Model):
     class Status(models.TextChoices):
         SUCCESS = 'SUCCESS', '성공'

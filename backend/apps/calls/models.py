@@ -31,4 +31,3 @@ class CallLog(models.Model):
 
     class Meta:
         db_table = 'tm_call_logs'
-        managed = False
