@@ -1,6 +1,6 @@
 // src/features/dashboard/components/DashboardLayout.tsx
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, LogOut, Database, Megaphone, BarChart2 } from 'lucide-react'; 
+import { LayoutDashboard, Users, LogOut, Database, Megaphone, BarChart2, Bot } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { storage } from '@/lib/storage'; 
 import { cn } from "@/lib/utils"; 
@@ -33,6 +33,11 @@ export default function DashboardLayout() {
       name: '성과 분석', 
       path: '/dashboard/performance', 
       icon: <BarChart2 className="w-4 h-4 mr-2" /> 
+    },
+    { 
+      name: 'AI 서비스', 
+      path: '/dashboard/ai-service', 
+      icon: <Bot className="w-4 h-4 mr-2" /> 
     },
   ];
 
