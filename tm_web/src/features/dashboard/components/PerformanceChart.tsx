@@ -30,7 +30,7 @@ export const PerformanceChart = ({ data }: PerformanceChartProps) => {
 
   return (
     <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm h-full flex flex-col">
-      <h3 className="font-bold text-gray-800 mb-4">시간별/아이템별 성과 추이</h3>
+      <h3 className="font-bold text-gray-800 mb-4">최근 7일 상담 성과 추이</h3>
       <div className="flex-1 min-h-[22rem] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData}>
