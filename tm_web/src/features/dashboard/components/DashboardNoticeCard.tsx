@@ -94,6 +94,10 @@ export function DashboardNoticeCard({ rows, isLoading }: DashboardNoticeCardProp
               const contractGap = isLeader ? 0 : (leader?.contractCount ?? 0) - row.contractCount;
               const sameContract = leader?.contractCount === row.contractCount;
               const sameSuccessRate = leader?.successRate === row.successRate;
+              const successCount = row.successCount ?? row.contractCount ?? 0;
+              const rejectCount = row.rejectCount ?? 0;
+              const absenceCount = row.absenceCount ?? 0;
+              const invalidCount = row.invalidCount ?? 0;
               const tieNote = !isLeader && sameContract
                 ? sameSuccessRate
                   ? "공동 1위"
@@ -124,10 +128,15 @@ export function DashboardNoticeCard({ rows, isLoading }: DashboardNoticeCardProp
                         </span>
                       </div>
                       <div className="mt-2 flex items-end justify-between">
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-[11px] font-semibold text-slate-500">계약</span>
-                          <span className="text-2xl font-bold text-slate-900">{row.contractCount}</span>
-                          <span className="text-[11px] font-semibold text-slate-500">건</span>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-[11px] font-semibold text-slate-500">계약</span>
+                            <span className="text-2xl font-bold text-slate-900">{row.contractCount}</span>
+                            <span className="text-[11px] font-semibold text-slate-500">건</span>
+                          </div>
+                          <div className="text-[11px] font-medium text-slate-500">
+                            동의 {successCount} · 거절 {rejectCount} · 부재 {absenceCount} · 결번 {invalidCount}
+                          </div>
                         </div>
                         <div className="flex flex-col items-end gap-0.5 text-[11px]">
                           {!isLeader && tieNote && (

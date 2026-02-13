@@ -4,6 +4,10 @@ export interface MetricsRow {
     successRate: number;
     avgCallTime: string;
     contractCount: number;
+    successCount: number;
+    rejectCount: number;
+    absenceCount: number;
+    invalidCount: number;
   };
   
   export interface ChartPoint {

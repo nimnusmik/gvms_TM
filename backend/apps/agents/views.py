@@ -187,6 +187,9 @@ class AgentViewSet(viewsets.ModelViewSet):
         ).annotate(
             today_total=Count('id'),
             today_success=Count('id', filter=Q(result_type='SUCCESS')),
+            today_reject=Count('id', filter=Q(result_type='REJECT')),
+            today_absence=Count('id', filter=Q(result_type='ABSENCE')),
+            today_invalid=Count('id', filter=Q(result_type='INVALID')),
             today_duration=Coalesce(Sum('call_duration'), 0)
         )
 
@@ -200,6 +203,9 @@ class AgentViewSet(viewsets.ModelViewSet):
             call_stat = call_stats_map.get(stat['agent_id'], {
                 'today_total': 0,
                 'today_success': 0,
+                'today_reject': 0,
+                'today_absence': 0,
+                'today_invalid': 0,
                 'today_duration': 0,
             })
 
@@ -231,7 +237,11 @@ class AgentViewSet(viewsets.ModelViewSet):
                 'name': stat['user__name'],
                 'successRate': success_rate,
                 'avgCallTime': self._calculate_avg_time(call_stat['today_duration'], call_stat['today_total']),
-                'contractCount': call_stat['today_success'] # 일단 성공 콜 수를 계약 수로 간주
+                'contractCount': call_stat['today_success'], # 일단 성공 콜 수를 계약 수로 간주
+                'successCount': call_stat['today_success'],
+                'rejectCount': call_stat['today_reject'],
+                'absenceCount': call_stat['today_absence'],
+                'invalidCount': call_stat['today_invalid'],
             })
 
         # 3. [차트 데이터] 최근 7일간 추이
@@ -260,12 +270,14 @@ class AgentViewSet(viewsets.ModelViewSet):
         total_agents = agents.count()
         active_agents = agents.exclude(status='OFFLINE').count()
         total_customers = SalesAssignment.objects.count()
+        new_customers = SalesAssignment.objects.filter(status='NEW', agent__isnull=True).count()
         success_customers = SalesAssignment.objects.filter(status='SUCCESS').count()
         today_total_calls = CallLog.objects.filter(call_start__date=today).count()
         success_rate = round((success_customers / total_customers) * 100, 1) if total_customers > 0 else 0
 
         return Response({
             "total_customers": total_customers,
+            "new_customers": new_customers,
             "active_agents": active_agents,
             "total_agents": total_agents,
             "success_rate": success_rate,

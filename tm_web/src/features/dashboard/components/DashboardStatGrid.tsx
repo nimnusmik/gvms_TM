@@ -19,20 +19,16 @@ function StatCard({ title, value, description, icon: Icon, color, accent, isLoad
       <div className="absolute inset-x-0 top-0 h-1" style={{ background: accent }} />
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-1">
         <div className="flex flex-col gap-1">
-          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-slate-600">
             {title}
           </CardTitle>
-          <div className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${color} bg-slate-50`}>
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
-            Live
-          </div>
         </div>
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
           <Icon className={`h-4 w-4 ${color}`} />
         </div>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold text-slate-900">
+        <div className="text-3xl font-bold text-slate-900">
           {isLoading ? (
             <span className="inline-block w-24 h-8 bg-slate-100 animate-pulse rounded" />
           ) : (
@@ -53,6 +49,7 @@ interface DashboardStatGridProps {
 export function DashboardStatGrid({ stats, isLoading }: DashboardStatGridProps) {
   const activeAgents = stats?.active_agents || 0;
   const totalAgents = stats?.total_agents || 1;
+  const newCustomers = stats?.new_customers || 0;
   const totalCustomers = stats?.total_customers || 0;
   const successRate = stats?.success_rate || 0;
   const todayTotalCalls = stats?.today_total_calls || 0;
@@ -68,9 +65,9 @@ export function DashboardStatGrid({ stats, isLoading }: DashboardStatGridProps) 
       isLoading,
     },
     {
-      title: "총 고객 DB",
-      value: `${totalCustomers.toLocaleString()}건`,
-      description: "배정 가능한 전체 리드",
+      title: "새로 배정 가능한 DB",
+      value: `${newCustomers.toLocaleString()}건`,
+      description: `총 DB 개수: ${totalCustomers.toLocaleString()}건`,
       icon: PhoneCall,
       color: "text-blue-600",
       accent: "#2563eb",
