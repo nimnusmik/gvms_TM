@@ -187,6 +187,9 @@ class AgentViewSet(viewsets.ModelViewSet):
         ).annotate(
             today_total=Count('id'),
             today_success=Count('id', filter=Q(result_type='SUCCESS')),
+            today_reject=Count('id', filter=Q(result_type='REJECT')),
+            today_absence=Count('id', filter=Q(result_type='ABSENCE')),
+            today_invalid=Count('id', filter=Q(result_type='INVALID')),
             today_duration=Coalesce(Sum('call_duration'), 0)
         )
 
@@ -200,6 +203,9 @@ class AgentViewSet(viewsets.ModelViewSet):
             call_stat = call_stats_map.get(stat['agent_id'], {
                 'today_total': 0,
                 'today_success': 0,
+                'today_reject': 0,
+                'today_absence': 0,
+                'today_invalid': 0,
                 'today_duration': 0,
             })
 
@@ -231,7 +237,11 @@ class AgentViewSet(viewsets.ModelViewSet):
                 'name': stat['user__name'],
                 'successRate': success_rate,
                 'avgCallTime': self._calculate_avg_time(call_stat['today_duration'], call_stat['today_total']),
-                'contractCount': call_stat['today_success'] # 일단 성공 콜 수를 계약 수로 간주
+                'contractCount': call_stat['today_success'], # 일단 성공 콜 수를 계약 수로 간주
+                'successCount': call_stat['today_success'],
+                'rejectCount': call_stat['today_reject'],
+                'absenceCount': call_stat['today_absence'],
+                'invalidCount': call_stat['today_invalid'],
             })
 
         # 3. [차트 데이터] 최근 7일간 추이
@@ -256,23 +266,68 @@ class AgentViewSet(viewsets.ModelViewSet):
                 'failCount': trend['failCount']
             })
 
+        # 3-1. [사원별 성과 추이] 최근 7일, 사원별 성공/총콜
+        agent_list = list(agents.values('agent_id', 'user__name'))
+        agent_ids = [row['agent_id'] for row in agent_list]
+        date_list = [seven_days_ago + timedelta(days=offset) for offset in range(7)]
+        points_map = {
+            d.strftime('%m/%d'): {
+                'date': d.strftime('%m/%d'),
+                'successByAgent': {},
+                'totalByAgent': {},
+            }
+            for d in date_list
+        }
+
+        if agent_ids:
+            agent_trends = (
+                CallLog.objects.filter(
+                    call_start__date__gte=seven_days_ago,
+                    agent_id__in=agent_ids
+                )
+                .annotate(date=TruncDate('call_start'))
+                .values('date', 'agent_id')
+                .annotate(
+                    totalCalls=Count('id'),
+                    successCount=Count('id', filter=Q(result_type='SUCCESS'))
+                )
+                .order_by('date')
+            )
+
+            for trend in agent_trends:
+                date_key = trend['date'].strftime('%m/%d')
+                agent_key = str(trend['agent_id'])
+                points_map[date_key]['successByAgent'][agent_key] = trend['successCount']
+                points_map[date_key]['totalByAgent'][agent_key] = trend['totalCalls']
+
+        agent_trends_payload = {
+            'agents': [
+                {'id': str(row['agent_id']), 'name': row['user__name']}
+                for row in agent_list
+            ],
+            'points': [points_map[d.strftime('%m/%d')] for d in date_list]
+        }
+
         # 4. 상단 통계 카드용 요약
         total_agents = agents.count()
         active_agents = agents.exclude(status='OFFLINE').count()
         total_customers = SalesAssignment.objects.count()
+        new_customers = SalesAssignment.objects.filter(status='NEW', agent__isnull=True).count()
         success_customers = SalesAssignment.objects.filter(status='SUCCESS').count()
         today_total_calls = CallLog.objects.filter(call_start__date=today).count()
         success_rate = round((success_customers / total_customers) * 100, 1) if total_customers > 0 else 0
 
         return Response({
             "total_customers": total_customers,
+            "new_customers": new_customers,
             "active_agents": active_agents,
             "total_agents": total_agents,
             "success_rate": success_rate,
             "today_total_calls": today_total_calls,
             "cards": cards_data,
             "table": table_data,
-            "chart": chart_data
+            "chart": chart_data,
+            "agent_trends": agent_trends_payload
         })
 
     def _format_duration(self, seconds):

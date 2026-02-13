@@ -30,13 +30,13 @@ class Command(BaseCommand):
         parser.add_argument(
             "--min-calls",
             type=int,
-            default=6,
+            default=120,
             help="상담원/일 최소 통화 건수",
         )
         parser.add_argument(
             "--max-calls",
             type=int,
-            default=14,
+            default=200,
             help="상담원/일 최대 통화 건수",
         )
         parser.add_argument(

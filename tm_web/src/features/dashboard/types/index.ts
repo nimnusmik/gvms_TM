@@ -8,6 +8,7 @@ export interface Candidate {
 
 export interface DashboardStats {
   total_customers: number;
+  new_customers: number;
   active_agents: number;
   total_agents: number;
   success_rate: number;

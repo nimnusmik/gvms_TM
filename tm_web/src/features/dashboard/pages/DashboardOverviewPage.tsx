@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DashboardHeader } from "../components/DashboardHeader";
 import { DashboardStatGrid } from "../components/DashboardStatGrid";
 import { DashboardNoticeCard } from "../components/DashboardNoticeCard";
-import { PerformanceChart } from "@/features/performance/components/PerformanceChart";
+import { PerformanceChart } from "@/features/dashboard/components/PerformanceChart";
 
 // 훅 및 유틸리티
 import { useDashboardStats } from "../hooks/useDashboardStats";
@@ -63,7 +63,6 @@ export default function DashboardOverviewPage() {
             </div>
           )}
         </div>
-        
       </div>
     </div>
   );

@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     'notices',
     'sales',
     'calls',
+    'ai_service', #테스트용
 
     'django_celery_results',
     'django_filters',
