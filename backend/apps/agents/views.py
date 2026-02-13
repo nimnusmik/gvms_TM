@@ -266,6 +266,48 @@ class AgentViewSet(viewsets.ModelViewSet):
                 'failCount': trend['failCount']
             })
 
+        # 3-1. [사원별 성과 추이] 최근 7일, 사원별 성공/총콜
+        agent_list = list(agents.values('agent_id', 'user__name'))
+        agent_ids = [row['agent_id'] for row in agent_list]
+        date_list = [seven_days_ago + timedelta(days=offset) for offset in range(7)]
+        points_map = {
+            d.strftime('%m/%d'): {
+                'date': d.strftime('%m/%d'),
+                'successByAgent': {},
+                'totalByAgent': {},
+            }
+            for d in date_list
+        }
+
+        if agent_ids:
+            agent_trends = (
+                CallLog.objects.filter(
+                    call_start__date__gte=seven_days_ago,
+                    agent_id__in=agent_ids
+                )
+                .annotate(date=TruncDate('call_start'))
+                .values('date', 'agent_id')
+                .annotate(
+                    totalCalls=Count('id'),
+                    successCount=Count('id', filter=Q(result_type='SUCCESS'))
+                )
+                .order_by('date')
+            )
+
+            for trend in agent_trends:
+                date_key = trend['date'].strftime('%m/%d')
+                agent_key = str(trend['agent_id'])
+                points_map[date_key]['successByAgent'][agent_key] = trend['successCount']
+                points_map[date_key]['totalByAgent'][agent_key] = trend['totalCalls']
+
+        agent_trends_payload = {
+            'agents': [
+                {'id': str(row['agent_id']), 'name': row['user__name']}
+                for row in agent_list
+            ],
+            'points': [points_map[d.strftime('%m/%d')] for d in date_list]
+        }
+
         # 4. 상단 통계 카드용 요약
         total_agents = agents.count()
         active_agents = agents.exclude(status='OFFLINE').count()
@@ -284,7 +326,8 @@ class AgentViewSet(viewsets.ModelViewSet):
             "today_total_calls": today_total_calls,
             "cards": cards_data,
             "table": table_data,
-            "chart": chart_data
+            "chart": chart_data,
+            "agent_trends": agent_trends_payload
         })
 
     def _format_duration(self, seconds):
