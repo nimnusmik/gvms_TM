@@ -143,11 +143,11 @@ export default function PerformancePage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
-        
-          <div className="lg:col-span-5 h-full">
+
+          <div className="lg:col-span-6 h-full">
             <MetricsTable data={data.table} />
           </div>
-          <div className="lg:col-span-7 h-full">
+          <div className="lg:col-span-6 h-full">
             <AgentTrendChart data={data.agentTrends} />
           </div>
         </div>
