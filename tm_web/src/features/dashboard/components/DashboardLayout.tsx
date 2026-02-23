@@ -24,7 +24,13 @@ export default function DashboardLayout() {
     { 
       name: '상담원 관리', 
       path: '/dashboard/agents', 
-      icon: Users, 
+      icon: Users,
+      children: [
+        {
+          name: '배정 이력',
+          path: '/dashboard/assignment-history',
+        }
+      ]
     },
     { 
       name: '고객 DB 관리', 
@@ -69,7 +75,9 @@ export default function DashboardLayout() {
           </div>
           
           <nav className={cn("flex-1 space-y-2", isSidebarOpen ? "p-4" : "p-2")}>
-            {menuItems.map((item) => (
+            {menuItems.map((item) => {
+              const isParentActive = location.pathname === item.path || item.children?.some((child) => location.pathname === child.path);
+              return (
               <div key={item.path}> {/* Link를 감싸는 div 추가 (선택사항, 스타일 유지용) */}
                 <Link
                   to={item.path}
@@ -78,7 +86,7 @@ export default function DashboardLayout() {
                     "flex items-center px-3 py-3 text-sm font-medium rounded-md transition-colors",
                     isSidebarOpen ? "justify-start" : "justify-center",
                     // 현재 경로와 정확히 일치하거나, 하위 경로일 때 활성화
-                    location.pathname === item.path 
+                    isParentActive 
                       ? "bg-blue-50 text-blue-600" // primary 색상 대신 직관적인 tailwind class 예시
                       : "text-gray-600 hover:bg-gray-50 hover:text-gray-900" 
                   )}
@@ -88,8 +96,26 @@ export default function DashboardLayout() {
                     {item.name}
                   </span>
                 </Link>
+                {item.children && isSidebarOpen && (
+                  <div className="mt-1 space-y-1 pl-9">
+                    {item.children.map((child) => (
+                      <Link
+                        key={child.path}
+                        to={child.path}
+                        className={cn(
+                          "block rounded-md px-3 py-2 text-xs transition-colors",
+                          location.pathname === child.path
+                            ? "bg-blue-50 text-blue-600"
+                            : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
+                        )}
+                      >
+                        {child.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
-            ))}
+            )})}
           </nav>
         </div>
 

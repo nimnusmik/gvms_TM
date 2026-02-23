@@ -22,8 +22,21 @@ class CallLogSerializer(serializers.ModelSerializer):
             'memo',
             'duration',
             'recording_file',
+            'recording_status',
+            'recording_mime',
+            'recording_size',
+            'recording_uploaded_at',
             'status_before',   # 자동 기록됨
             'status_after',    # 자동 기록됨
             'created_at',
         ]
-        read_only_fields = ['agent', 'status_before', 'status_after', 'created_at']
+        read_only_fields = [
+            'agent',
+            'recording_status',
+            'recording_mime',
+            'recording_size',
+            'recording_uploaded_at',
+            'status_before',
+            'status_after',
+            'created_at',
+        ]

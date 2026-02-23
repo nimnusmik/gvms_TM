@@ -28,6 +28,18 @@ class CallLog(models.Model):
     result_type = models.CharField(max_length=50, choices=Result.choices, verbose_name="통화 결과")
     is_billable = models.BooleanField(default=True)
     recording_file = models.FileField(upload_to='recordings/%Y/%m/', null=True, blank=True)
+    recording_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('PENDING', '업로드 대기'),
+            ('UPLOADED', '업로드 완료'),
+            ('FAILED', '업로드 실패'),
+        ],
+        default='PENDING',
+    )
+    recording_mime = models.CharField(max_length=100, null=True, blank=True)
+    recording_size = models.IntegerField(null=True, blank=True)
+    recording_uploaded_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'tm_call_logs'

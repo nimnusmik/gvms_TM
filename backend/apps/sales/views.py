@@ -4,12 +4,23 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import transaction
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, F
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
+from django.conf import settings
+from django.http import HttpResponse
+from datetime import datetime, timedelta, time
+import pytz
+from openpyxl import Workbook
 
 from .models import SalesAssignment, SalesPullRequest
-from .serializers import SalesAssignmentSerializer, SalesPullRequestSerializer
+from .serializers import (
+    SalesAssignmentSerializer,
+    SalesPullRequestSerializer,
+    AssignmentHistorySummarySerializer,
+    AssignmentHistoryDetailSerializer
+)
 from .services import assign_leads_to_agent
 from .tasks import task_run_auto_assign
 from apps.agents.models import Agent
@@ -24,6 +35,73 @@ class SalesAssignmentViewSet(viewsets.ModelViewSet):
     search_fields = ['customer__name', 'customer__phone', 'memo']
     ordering_fields = ['updated_at', 'assigned_at']
     ordering = ['-updated_at'] # 최근 활동순 정렬
+
+    def _parse_date(self, value):
+        if not value:
+            return None
+        try:
+            return datetime.strptime(value, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValidationError({"detail": "날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)"})
+
+    def _get_date_range(self, request):
+        start = self._parse_date(request.query_params.get('start_date'))
+        end = self._parse_date(request.query_params.get('end_date'))
+
+        today_kst = timezone.localtime().date()
+        if end is None:
+            end = today_kst
+        if start is None:
+            start = end - timedelta(days=6)
+
+        if start > end:
+            raise ValidationError({"detail": "start_date는 end_date보다 이후일 수 없습니다."})
+
+        return start, end
+
+    def _get_kst_range(self, start_date, end_date):
+        kst = pytz.timezone('Asia/Seoul')
+        start_dt = kst.localize(datetime.combine(start_date, time.min))
+        end_dt = kst.localize(datetime.combine(end_date, time.max))
+
+        if settings.USE_TZ:
+            start_dt = start_dt.astimezone(pytz.UTC)
+            end_dt = end_dt.astimezone(pytz.UTC)
+
+        return start_dt, end_dt, kst
+
+    def _get_history_queryset(self, request):
+        stage = request.query_params.get('stage') or SalesAssignment.Stage.FIRST
+        start_date, end_date = self._get_date_range(request)
+        start_dt, end_dt, kst = self._get_kst_range(start_date, end_date)
+
+        qs = SalesAssignment.objects.select_related(
+            'agent', 'agent__user', 'customer'
+        ).filter(
+            agent__isnull=False,
+            stage=stage,
+            assigned_at__range=(start_dt, end_dt)
+        )
+
+        agent_id = request.query_params.get('agent_id')
+        user = request.user
+
+        if getattr(user, 'is_superuser', False):
+            if agent_id:
+                qs = qs.filter(agent_id=agent_id)
+            return qs, start_date, end_date, kst
+
+        if not hasattr(user, 'agent_profile'):
+            return qs.none(), start_date, end_date, kst
+
+        agent = user.agent_profile
+        if agent.role in ['ADMIN', 'MANAGER']:
+            if agent_id:
+                qs = qs.filter(agent_id=agent_id)
+        else:
+            qs = qs.filter(agent=agent)
+
+        return qs, start_date, end_date, kst
 
     def get_queryset(self):
         user = self.request.user
@@ -175,6 +253,129 @@ class SalesAssignmentViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(secondary)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'], url_path='assignment-history/summary')
+    def assignment_history_summary(self, request):
+        qs, _, _, kst = self._get_history_queryset(request)
+
+        summary = qs.annotate(
+            date=TruncDate('assigned_at', tzinfo=kst),
+            agent_name=F('agent__user__name')
+        ).values(
+            'date', 'agent_id', 'agent_name'
+        ).annotate(
+            assigned_count=Count('id')
+        ).order_by('date', 'agent_name')
+
+        serializer = AssignmentHistorySummarySerializer(summary, many=True)
+        return Response({"items": serializer.data})
+
+    @action(detail=False, methods=['get'], url_path='assignment-history/detail')
+    def assignment_history_detail(self, request):
+        qs, _, _, _ = self._get_history_queryset(request)
+
+        detail = qs.annotate(
+            agent_name=F('agent__user__name'),
+            customer_name=F('customer__name')
+        ).values(
+            assignment_id=F('id'),
+            assigned_at=F('assigned_at'),
+            agent_id=F('agent_id'),
+            agent_name=F('agent_name'),
+            customer_id=F('customer_id'),
+            customer_name=F('customer_name'),
+            status=F('status')
+        ).order_by('assigned_at')
+
+        serializer = AssignmentHistoryDetailSerializer(detail, many=True)
+        return Response({"items": serializer.data})
+
+    @action(detail=False, methods=['get'], url_path='assignment-history/export')
+    def assignment_history_export(self, request):
+        qs, start_date, end_date, kst = self._get_history_queryset(request)
+
+        summary = qs.annotate(
+            date=TruncDate('assigned_at', tzinfo=kst),
+            agent_name=F('agent__user__name')
+        ).values(
+            'date', 'agent_id', 'agent_name'
+        ).annotate(
+            assigned_count=Count('id')
+        )
+
+        summary_map = {}
+        for row in summary:
+            key = (str(row['agent_id']), row['date'].isoformat())
+            summary_map[key] = row['assigned_count']
+
+        if getattr(request.user, 'is_superuser', False) or (
+            hasattr(request.user, 'agent_profile') and request.user.agent_profile.role in ['ADMIN', 'MANAGER']
+        ):
+            agent_id = request.query_params.get('agent_id')
+            agents_qs = Agent.objects.select_related('user').all()
+            if agent_id:
+                agents_qs = agents_qs.filter(agent_id=agent_id)
+        else:
+            agents_qs = Agent.objects.select_related('user').filter(user=request.user)
+
+        agents = list(agents_qs.order_by('created_at'))
+
+        date_cursor = start_date
+        dates = []
+        while date_cursor <= end_date:
+            dates.append(date_cursor)
+            date_cursor += timedelta(days=1)
+
+        wb = Workbook()
+        ws_pivot = wb.active
+        ws_pivot.title = "Pivot"
+
+        header = ["상담원"] + [d.isoformat() for d in dates]
+        ws_pivot.append(header)
+
+        for agent in agents:
+            row = [agent.user.name]
+            for d in dates:
+                key = (str(agent.agent_id), d.isoformat())
+                row.append(summary_map.get(key, 0))
+            ws_pivot.append(row)
+
+        ws_detail = wb.create_sheet("Detail")
+        ws_detail.append([
+            "배정ID", "배정일시", "상담원ID", "상담원명", "고객ID", "고객명", "상태"
+        ])
+
+        detail = qs.annotate(
+            agent_name=F('agent__user__name'),
+            customer_name=F('customer__name')
+        ).values(
+            assignment_id=F('id'),
+            assigned_at=F('assigned_at'),
+            agent_id=F('agent_id'),
+            agent_name=F('agent_name'),
+            customer_id=F('customer_id'),
+            customer_name=F('customer_name'),
+            status=F('status')
+        ).order_by('assigned_at')
+
+        for row in detail:
+            ws_detail.append([
+                row['assignment_id'],
+                timezone.localtime(row['assigned_at']).isoformat(),
+                str(row['agent_id']),
+                row['agent_name'],
+                row['customer_id'],
+                row['customer_name'],
+                row['status']
+            ])
+
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        filename = f"assignment_history_{start_date.isoformat()}_{end_date.isoformat()}.xlsx"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        wb.save(response)
+        return response
 
 
 # [2] 땡겨오기 신청/승인 ViewSet

@@ -131,3 +131,22 @@ class SalesPullRequestSerializer(serializers.ModelSerializer):
 
     def get_processed_by_name(self, obj):
         return obj.processed_by.user.name if obj.processed_by and obj.processed_by.user else None
+
+
+# [3] 배정 이력 요약 (읽기 전용)
+class AssignmentHistorySummarySerializer(serializers.Serializer):
+    date = serializers.DateField()
+    agent_id = serializers.UUIDField()
+    agent_name = serializers.CharField()
+    assigned_count = serializers.IntegerField()
+
+
+# [4] 배정 이력 상세 (읽기 전용)
+class AssignmentHistoryDetailSerializer(serializers.Serializer):
+    assignment_id = serializers.IntegerField()
+    assigned_at = serializers.DateTimeField()
+    agent_id = serializers.UUIDField()
+    agent_name = serializers.CharField()
+    customer_id = serializers.IntegerField()
+    customer_name = serializers.CharField()
+    status = serializers.CharField()

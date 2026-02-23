@@ -13,6 +13,9 @@ celery
 redis
 django-celery-results
 openpyxl>=3.1.0
+pytz>=2024.1
 xlrd>=2.0.1
 
 httpx
+django-storages
+boto3
