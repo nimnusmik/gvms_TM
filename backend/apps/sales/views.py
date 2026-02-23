@@ -387,11 +387,42 @@ class SalesPullRequestViewSet(viewsets.ModelViewSet):
     ordering_fields = ['created_at', 'processed_at']
     ordering = ['-created_at']
 
+    def _parse_date(self, value):
+        if not value:
+            return None
+        try:
+            return datetime.strptime(value, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValidationError({"detail": "날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)"})
+
+    def _get_kst_range(self, start_date, end_date):
+        kst = pytz.timezone('Asia/Seoul')
+        start_dt = kst.localize(datetime.combine(start_date, time.min))
+        end_dt = kst.localize(datetime.combine(end_date, time.max))
+
+        if settings.USE_TZ:
+            start_dt = start_dt.astimezone(pytz.UTC)
+            end_dt = end_dt.astimezone(pytz.UTC)
+
+        return start_dt, end_dt
+
     def get_queryset(self):
         user = self.request.user
         base_qs = SalesPullRequest.objects.select_related(
             'agent', 'agent__user', 'processed_by', 'processed_by__user'
         )
+
+        start_date = self._parse_date(self.request.query_params.get('start_date'))
+        end_date = self._parse_date(self.request.query_params.get('end_date'))
+        if start_date or end_date:
+            if start_date is None:
+                start_date = end_date
+            if end_date is None:
+                end_date = start_date
+            if start_date > end_date:
+                raise ValidationError({"detail": "start_date는 end_date보다 이후일 수 없습니다."})
+            start_dt, end_dt = self._get_kst_range(start_date, end_date)
+            base_qs = base_qs.filter(created_at__range=(start_dt, end_dt))
 
         if getattr(user, 'is_superuser', False):
             return base_qs

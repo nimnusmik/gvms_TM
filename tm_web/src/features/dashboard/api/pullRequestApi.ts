@@ -4,6 +4,8 @@ import type { PaginatedResponse, PullRequestItem } from "../types";
 type PullRequestListParams = {
   status?: "PENDING" | "APPROVED" | "REJECTED";
   agentId?: string;
+  startDate?: string;
+  endDate?: string;
   page?: number;
 };
 
@@ -12,6 +14,8 @@ export const pullRequestApi = {
     const queryParams = new URLSearchParams();
     if (params.status) queryParams.append("status", params.status);
     if (params.agentId) queryParams.append("agent", params.agentId);
+    if (params.startDate) queryParams.append("start_date", params.startDate);
+    if (params.endDate) queryParams.append("end_date", params.endDate);
     if (params.page) queryParams.append("page", params.page.toString());
 
     const query = queryParams.toString();
