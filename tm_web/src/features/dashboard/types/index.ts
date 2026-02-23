@@ -19,6 +19,7 @@ export interface DashboardStats {
     totalCalls: number;
     successCount: number;
     failCount: number;
+    absenceInvalidCount: number;
   }[];
 }
 

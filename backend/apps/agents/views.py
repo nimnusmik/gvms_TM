@@ -254,7 +254,8 @@ class AgentViewSet(viewsets.ModelViewSet):
         ).values('date').annotate(
             totalCalls=Count('id'),
             successCount=Count('id', filter=Q(result_type='SUCCESS')),
-            failCount=Count('id', filter=Q(result_type='REJECT'))
+            failCount=Count('id', filter=Q(result_type='REJECT')),
+            absenceInvalidCount=Count('id', filter=Q(result_type__in=['ABSENCE', 'INVALID']))
         ).order_by('date')
 
         chart_data = []
@@ -263,7 +264,8 @@ class AgentViewSet(viewsets.ModelViewSet):
                 'date': trend['date'].strftime('%m/%d'), # 02/09 형식
                 'totalCalls': trend['totalCalls'],
                 'successCount': trend['successCount'],
-                'failCount': trend['failCount']
+                'failCount': trend['failCount'],
+                'absenceInvalidCount': trend['absenceInvalidCount']
             })
 
         # 3-1. [사원별 성과 추이] 최근 7일, 사원별 성공/총콜
