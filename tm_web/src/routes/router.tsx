@@ -9,6 +9,7 @@ import ProtectedRoute from '@/features/auth/components/ProtectedRoute';
 import NoticePage from '@/features/notices/pages/NoticePage';
 import PerformancePage from '@/features/performance/pages/PerformancePage';
 import AiServicePage from '@/features/ai_service/pages/AiServicePage';
+import AssignmentHistoryPage from '@/features/assignments/pages/AssignmentHistoryPage';
 
 export const router = createBrowserRouter([
   // 1. 누구나 접속 가능한 페이지
@@ -60,6 +61,10 @@ export const router = createBrowserRouter([
       {
         path: 'ai-service',
         element: <AiServicePage />,
+      },
+      {
+        path: 'assignment-history',
+        element: <AssignmentHistoryPage />,
       },
     ],
   },

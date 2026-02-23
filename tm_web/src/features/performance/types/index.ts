@@ -15,6 +15,7 @@ export interface ChartPoint {
     totalCalls: number;
     successCount: number;
     failCount: number;
+    absenceInvalidCount: number;
   };
 
   export interface AgentTrendPoint {

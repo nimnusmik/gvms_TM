@@ -69,6 +69,7 @@ INSTALLED_APPS = [
 
     'django_celery_results',
     'django_filters',
+    'storages',
 ]
 
 MIDDLEWARE = [
@@ -191,3 +192,15 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# Media / S3-compatible storage (S3 or MinIO)
+AWS_ACCESS_KEY_ID = os.getenv('S3_ACCESS_KEY')
+AWS_SECRET_ACCESS_KEY = os.getenv('S3_SECRET_KEY')
+AWS_STORAGE_BUCKET_NAME = os.getenv('S3_BUCKET')
+AWS_S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL')
+AWS_S3_REGION_NAME = os.getenv('S3_REGION', 'us-east-1')
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+AWS_S3_ADDRESSING_STYLE = os.getenv('S3_ADDRESSING_STYLE', 'path')
+AWS_DEFAULT_ACL = None
+
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'

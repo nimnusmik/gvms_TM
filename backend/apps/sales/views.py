@@ -1,14 +1,26 @@
-from rest_framework import viewsets, status, filters
+from rest_framework import viewsets, status, filters, permissions
+from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import transaction
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, F
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
+from django.conf import settings
+from django.http import HttpResponse
+from datetime import datetime, timedelta, time
+import pytz
+from openpyxl import Workbook
 
-from .models import SalesAssignment
-from .serializers import SalesAssignmentSerializer
+from .models import SalesAssignment, SalesPullRequest
+from .serializers import (
+    SalesAssignmentSerializer,
+    SalesPullRequestSerializer,
+    AssignmentHistorySummarySerializer,
+    AssignmentHistoryDetailSerializer
+)
 from .services import assign_leads_to_agent
 from .tasks import task_run_auto_assign
 from apps.agents.models import Agent
@@ -23,6 +35,73 @@ class SalesAssignmentViewSet(viewsets.ModelViewSet):
     search_fields = ['customer__name', 'customer__phone', 'memo']
     ordering_fields = ['updated_at', 'assigned_at']
     ordering = ['-updated_at'] # 최근 활동순 정렬
+
+    def _parse_date(self, value):
+        if not value:
+            return None
+        try:
+            return datetime.strptime(value, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValidationError({"detail": "날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)"})
+
+    def _get_date_range(self, request):
+        start = self._parse_date(request.query_params.get('start_date'))
+        end = self._parse_date(request.query_params.get('end_date'))
+
+        today_kst = timezone.localtime().date()
+        if end is None:
+            end = today_kst
+        if start is None:
+            start = end - timedelta(days=6)
+
+        if start > end:
+            raise ValidationError({"detail": "start_date는 end_date보다 이후일 수 없습니다."})
+
+        return start, end
+
+    def _get_kst_range(self, start_date, end_date):
+        kst = pytz.timezone('Asia/Seoul')
+        start_dt = kst.localize(datetime.combine(start_date, time.min))
+        end_dt = kst.localize(datetime.combine(end_date, time.max))
+
+        if settings.USE_TZ:
+            start_dt = start_dt.astimezone(pytz.UTC)
+            end_dt = end_dt.astimezone(pytz.UTC)
+
+        return start_dt, end_dt, kst
+
+    def _get_history_queryset(self, request):
+        stage = request.query_params.get('stage') or SalesAssignment.Stage.FIRST
+        start_date, end_date = self._get_date_range(request)
+        start_dt, end_dt, kst = self._get_kst_range(start_date, end_date)
+
+        qs = SalesAssignment.objects.select_related(
+            'agent', 'agent__user', 'customer'
+        ).filter(
+            agent__isnull=False,
+            stage=stage,
+            assigned_at__range=(start_dt, end_dt)
+        )
+
+        agent_id = request.query_params.get('agent_id')
+        user = request.user
+
+        if getattr(user, 'is_superuser', False):
+            if agent_id:
+                qs = qs.filter(agent_id=agent_id)
+            return qs, start_date, end_date, kst
+
+        if not hasattr(user, 'agent_profile'):
+            return qs.none(), start_date, end_date, kst
+
+        agent = user.agent_profile
+        if agent.role in ['ADMIN', 'MANAGER']:
+            if agent_id:
+                qs = qs.filter(agent_id=agent_id)
+        else:
+            qs = qs.filter(agent=agent)
+
+        return qs, start_date, end_date, kst
 
     def get_queryset(self):
         user = self.request.user
@@ -174,3 +253,242 @@ class SalesAssignmentViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(secondary)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'], url_path='assignment-history/summary')
+    def assignment_history_summary(self, request):
+        qs, _, _, kst = self._get_history_queryset(request)
+
+        summary = qs.annotate(
+            date=TruncDate('assigned_at', tzinfo=kst),
+            agent_name=F('agent__user__name')
+        ).values(
+            'date', 'agent_id', 'agent_name'
+        ).annotate(
+            assigned_count=Count('id')
+        ).order_by('date', 'agent_name')
+
+        serializer = AssignmentHistorySummarySerializer(summary, many=True)
+        return Response({"items": serializer.data})
+
+    @action(detail=False, methods=['get'], url_path='assignment-history/detail')
+    def assignment_history_detail(self, request):
+        qs, _, _, _ = self._get_history_queryset(request)
+
+        detail = qs.annotate(
+            agent_name=F('agent__user__name'),
+            customer_name=F('customer__name')
+        ).values(
+            assignment_id=F('id'),
+            assigned_at=F('assigned_at'),
+            agent_id=F('agent_id'),
+            agent_name=F('agent_name'),
+            customer_id=F('customer_id'),
+            customer_name=F('customer_name'),
+            status=F('status')
+        ).order_by('assigned_at')
+
+        serializer = AssignmentHistoryDetailSerializer(detail, many=True)
+        return Response({"items": serializer.data})
+
+    @action(detail=False, methods=['get'], url_path='assignment-history/export')
+    def assignment_history_export(self, request):
+        qs, start_date, end_date, kst = self._get_history_queryset(request)
+
+        summary = qs.annotate(
+            date=TruncDate('assigned_at', tzinfo=kst),
+            agent_name=F('agent__user__name')
+        ).values(
+            'date', 'agent_id', 'agent_name'
+        ).annotate(
+            assigned_count=Count('id')
+        )
+
+        summary_map = {}
+        for row in summary:
+            key = (str(row['agent_id']), row['date'].isoformat())
+            summary_map[key] = row['assigned_count']
+
+        if getattr(request.user, 'is_superuser', False) or (
+            hasattr(request.user, 'agent_profile') and request.user.agent_profile.role in ['ADMIN', 'MANAGER']
+        ):
+            agent_id = request.query_params.get('agent_id')
+            agents_qs = Agent.objects.select_related('user').all()
+            if agent_id:
+                agents_qs = agents_qs.filter(agent_id=agent_id)
+        else:
+            agents_qs = Agent.objects.select_related('user').filter(user=request.user)
+
+        agents = list(agents_qs.order_by('created_at'))
+
+        date_cursor = start_date
+        dates = []
+        while date_cursor <= end_date:
+            dates.append(date_cursor)
+            date_cursor += timedelta(days=1)
+
+        wb = Workbook()
+        ws_pivot = wb.active
+        ws_pivot.title = "Pivot"
+
+        header = ["상담원"] + [d.isoformat() for d in dates]
+        ws_pivot.append(header)
+
+        for agent in agents:
+            row = [agent.user.name]
+            for d in dates:
+                key = (str(agent.agent_id), d.isoformat())
+                row.append(summary_map.get(key, 0))
+            ws_pivot.append(row)
+
+        ws_detail = wb.create_sheet("Detail")
+        ws_detail.append([
+            "배정ID", "배정일시", "상담원ID", "상담원명", "고객ID", "고객명", "상태"
+        ])
+
+        detail = qs.annotate(
+            agent_name=F('agent__user__name'),
+            customer_name=F('customer__name')
+        ).values(
+            assignment_id=F('id'),
+            assigned_at=F('assigned_at'),
+            agent_id=F('agent_id'),
+            agent_name=F('agent_name'),
+            customer_id=F('customer_id'),
+            customer_name=F('customer_name'),
+            status=F('status')
+        ).order_by('assigned_at')
+
+        for row in detail:
+            ws_detail.append([
+                row['assignment_id'],
+                timezone.localtime(row['assigned_at']).isoformat(),
+                str(row['agent_id']),
+                row['agent_name'],
+                row['customer_id'],
+                row['customer_name'],
+                row['status']
+            ])
+
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        filename = f"assignment_history_{start_date.isoformat()}_{end_date.isoformat()}.xlsx"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        wb.save(response)
+        return response
+
+
+# [2] 땡겨오기 신청/승인 ViewSet
+class SalesPullRequestViewSet(viewsets.ModelViewSet):
+    serializer_class = SalesPullRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['status', 'agent']
+    ordering_fields = ['created_at', 'processed_at']
+    ordering = ['-created_at']
+
+    def _parse_date(self, value):
+        if not value:
+            return None
+        try:
+            return datetime.strptime(value, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValidationError({"detail": "날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)"})
+
+    def _get_kst_range(self, start_date, end_date):
+        kst = pytz.timezone('Asia/Seoul')
+        start_dt = kst.localize(datetime.combine(start_date, time.min))
+        end_dt = kst.localize(datetime.combine(end_date, time.max))
+
+        if settings.USE_TZ:
+            start_dt = start_dt.astimezone(pytz.UTC)
+            end_dt = end_dt.astimezone(pytz.UTC)
+
+        return start_dt, end_dt
+
+    def get_queryset(self):
+        user = self.request.user
+        base_qs = SalesPullRequest.objects.select_related(
+            'agent', 'agent__user', 'processed_by', 'processed_by__user'
+        )
+
+        start_date = self._parse_date(self.request.query_params.get('start_date'))
+        end_date = self._parse_date(self.request.query_params.get('end_date'))
+        if start_date or end_date:
+            if start_date is None:
+                start_date = end_date
+            if end_date is None:
+                end_date = start_date
+            if start_date > end_date:
+                raise ValidationError({"detail": "start_date는 end_date보다 이후일 수 없습니다."})
+            start_dt, end_dt = self._get_kst_range(start_date, end_date)
+            base_qs = base_qs.filter(created_at__range=(start_dt, end_dt))
+
+        if getattr(user, 'is_superuser', False):
+            return base_qs
+        if not hasattr(user, 'agent_profile'):
+            return base_qs.none()
+
+        agent = user.agent_profile
+        if agent.role in ['ADMIN', 'MANAGER']:
+            return base_qs
+        return base_qs.filter(agent=agent)
+
+    def perform_create(self, serializer):
+        if not hasattr(self.request.user, 'agent_profile'):
+            raise ValidationError({"detail": "상담원 프로필이 필요합니다."})
+        serializer.save(agent=self.request.user.agent_profile)
+
+    def _ensure_admin(self, request):
+        if getattr(request.user, 'is_superuser', False):
+            return True
+        if not hasattr(request.user, 'agent_profile'):
+            return False
+        return request.user.agent_profile.role in ['ADMIN', 'MANAGER']
+
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        if not self._ensure_admin(request):
+            return Response({"detail": "권한이 없습니다."}, status=status.HTTP_403_FORBIDDEN)
+
+        pull_request = self.get_object()
+        if pull_request.status != SalesPullRequest.Status.PENDING:
+            return Response({"detail": "이미 처리된 요청입니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+        assigned_count = assign_leads_to_agent(pull_request.agent, count=pull_request.requested_count)
+        pull_request.status = SalesPullRequest.Status.APPROVED
+        pull_request.approved_count = assigned_count
+        pull_request.processed_by = getattr(request.user, 'agent_profile', None)
+        pull_request.processed_at = timezone.now()
+        pull_request.save(update_fields=[
+            'status', 'approved_count', 'processed_by', 'processed_at', 'updated_at'
+        ])
+
+        return Response({
+            "message": f"{assigned_count}건을 배정했습니다.",
+            "assigned_count": assigned_count,
+            "request_id": pull_request.id
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        if not self._ensure_admin(request):
+            return Response({"detail": "권한이 없습니다."}, status=status.HTTP_403_FORBIDDEN)
+
+        pull_request = self.get_object()
+        if pull_request.status != SalesPullRequest.Status.PENDING:
+            return Response({"detail": "이미 처리된 요청입니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+        reject_reason = request.data.get('reason', '') or ''
+        pull_request.status = SalesPullRequest.Status.REJECTED
+        pull_request.reject_reason = reject_reason
+        pull_request.processed_by = getattr(request.user, 'agent_profile', None)
+        pull_request.processed_at = timezone.now()
+        pull_request.save(update_fields=[
+            'status', 'reject_reason', 'processed_by', 'processed_at', 'updated_at'
+        ])
+
+        return Response({
+            "message": "요청을 거절했습니다.",
+            "request_id": pull_request.id
+        }, status=status.HTTP_200_OK)

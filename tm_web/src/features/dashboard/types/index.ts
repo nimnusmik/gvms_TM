@@ -19,6 +19,7 @@ export interface DashboardStats {
     totalCalls: number;
     successCount: number;
     failCount: number;
+    absenceInvalidCount: number;
   }[];
 }
 
@@ -35,4 +36,24 @@ export interface AssignedCustomer {
   status: string;
   phone: string;
   created_at: string;
+}
+
+export interface PullRequestItem {
+  id: number;
+  agent: string;
+  agent_id: string | null;
+  agent_name: string | null;
+  agent_code: string | null;
+  requested_count: number;
+  approved_count: number;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  status_display: string;
+  request_note: string;
+  reject_reason: string;
+  processed_by: string | null;
+  processed_by_id: string | null;
+  processed_by_name: string | null;
+  processed_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
