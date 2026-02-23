@@ -24,14 +24,14 @@ def task_process_large_excel(file_path, user_id):
             
             # 1. 데이터 전처리
             customer_objs = []
-            phones_in_batch = []
+            phones_in_batch = set()
             
             for _, row in chunk_df.iterrows():
                 try:
                     data = _extract_data(row) # 아래 헬퍼 함수 사용
                     if not data: continue
                     
-                    phones_in_batch.append(data['phone'])
+                    phones_in_batch.add(data['phone'])
                     customer_objs.append(Customer(
                         name=data['name'] or data['phone'],
                         phone=data['phone'],
@@ -52,20 +52,31 @@ def task_process_large_excel(file_path, user_id):
                 
                 # 3. 방금 저장된(혹은 이미 있던) 고객들의 ID 조회
                 saved_customers = Customer.objects.filter(phone__in=phones_in_batch)
-                
+
                 # 4. 영업 배정(SalesAssignment) 생성
                 # (주의: 이미 배정 기록이 있는 고객은 중복 생성 방지 로직이 필요할 수 있으나, 
                 # 일단 단순하게 신규 고객은 무조건 1차/NEW 생성으로 진행)
                 assignment_objs = []
-                
-                # 기존에 1차 진행중인 건이 없는지 확인 (선택사항 - 속도 위해 생략 가능)
-                # 여기서는 '무조건 생성' 하되, 기존 고객 재유입일 수 있으므로 생성함.
-                
+
+                active_customer_ids = set(
+                    SalesAssignment.objects.filter(
+                        customer_id__in=saved_customers.values_list('id', flat=True),
+                        stage=SalesAssignment.Stage.FIRST,
+                        status__in=[
+                            SalesAssignment.Status.NEW,
+                            SalesAssignment.Status.ASSIGNED,
+                            SalesAssignment.Status.TRYING,
+                        ],
+                    ).values_list('customer_id', flat=True)
+                )
+
                 for cust in saved_customers:
+                    if cust.id in active_customer_ids:
+                        continue
                     assignment_objs.append(SalesAssignment(
                         customer=cust,
-                        stage='1ST',   # 1차 영업
-                        status='NEW',  # 대기 상태
+                        stage=SalesAssignment.Stage.FIRST,
+                        status=SalesAssignment.Status.NEW,
                         agent=None     # 아직 담당자 없음
                     ))
                 

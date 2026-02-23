@@ -15,7 +15,4 @@ class Migration(migrations.Migration):
             name='status',
             field=models.CharField(choices=[('NEW', '대기(미배정)'), ('ASSIGNED', '배정됨'), ('TRYING', '통화중'), ('REJECT', '거절'), ('INVALID', '결번'), ('SUCCESS', '성공(동의/계약)'), ('BUY', '구매'), ('HOLD', '보류')], default='NEW', max_length=20),
         ),
-        migrations.DeleteModel(
-            name='CallLog',
-        ),
     ]

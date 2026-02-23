@@ -74,7 +74,7 @@ def create_recycled_assignments(agent, count):
 
     with transaction.atomic():
         candidates = list(
-            get_recycle_candidates(count, exclude_agent_id=agent.id).select_for_update()
+            get_recycle_candidates(count, exclude_agent_id=agent.pk).select_for_update()
         )
         if not candidates:
             return 0
@@ -163,4 +163,26 @@ def assign_leads_to_agent(agent, count=None): # count가 None이면 자동 계�
     desired_recycle = max(target_recycle, remaining)
     assigned_recycle = create_recycled_assignments(agent, desired_recycle)
 
-    return assigned_new + assigned_recycle
+    # 재활용 후보가 부족하면 신규로 추가 보충
+    still_needed = count - (assigned_new + assigned_recycle)
+    if still_needed <= 0:
+        return assigned_new + assigned_recycle
+
+    with transaction.atomic():
+        extra_new = SalesAssignment.objects.select_for_update().filter(
+            stage=SalesAssignment.Stage.FIRST,
+            status=SalesAssignment.Status.NEW,
+            agent__isnull=True
+        ).order_by('assigned_at')[:still_needed]
+
+        extra_ids = list(extra_new.values_list('id', flat=True))
+        if extra_ids:
+            assigned_extra = SalesAssignment.objects.filter(id__in=extra_ids).update(
+                agent=agent,
+                status=SalesAssignment.Status.ASSIGNED,
+                assigned_at=timezone.now()
+            )
+        else:
+            assigned_extra = 0
+
+    return assigned_new + assigned_recycle + assigned_extra

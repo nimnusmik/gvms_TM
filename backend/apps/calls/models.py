@@ -43,3 +43,10 @@ class CallLog(models.Model):
 
     class Meta:
         db_table = 'tm_call_logs'
+        indexes = [
+            # 1. 재활용 후보 찾기(마지막 통화 조회) 최적화: 필수
+            models.Index(fields=['assignment', 'call_start'], name='idx_call_assignment_start'),
+            
+            # 2. 상담원별 통화 이력/통계 조회 최적화: 권장
+            models.Index(fields=['agent', 'call_start'], name='idx_call_agent_start'),
+        ]

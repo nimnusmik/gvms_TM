@@ -50,8 +50,21 @@ class SalesAssignment(models.Model):
     class Meta:
         db_table = 'tm_sales_assignments'
         indexes = [
-            models.Index(fields=['agent', 'stage', 'status']),
-            models.Index(fields=['status']), # 땡겨오기 속도 향상
+            # [수정] 1. 상담원별 오늘 배정량 및 상태 조회를 위한 핵심 인덱스
+            # (assign_leads_to_agent 함수 내 range 조회 최적화)
+            models.Index(fields=['agent', 'assigned_at'], name='idx_sales_agent_date'),
+
+            # [추가] 2. 재활용 후보 조회를 위한 복합 인덱스 (매우 중요!)
+            # (Exists 쿼리: 특정 고객이 현재 진행 중인지 빛의 속도로 확인)
+            models.Index(fields=['customer', 'stage', 'status'], name='idx_sales_cust_stage_status'),
+
+            # [추가] 3. 고객별 최신 배정 이력을 찾기 위한 인덱스
+            # (_get_latest_assignment_queryset 최적화)
+            models.Index(fields=['customer', 'assigned_at'], name='idx_sales_cust_latest_date'),
+
+            # [유지] 4. 신규 DB 땡겨오기(미배정 데이터) 속도 향상
+            # (status='NEW' 인 것들만 빠르게 모아보기)
+            models.Index(fields=['stage', 'status', 'agent', 'assigned_at'], name='idx_sales_new_leads_flow'),
         ]
 
 # [2] DB 땡겨오기 신청/승인 기록

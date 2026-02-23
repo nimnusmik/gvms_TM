@@ -49,22 +49,6 @@ class Migration(migrations.Migration):
                 'db_table': 'tm_sales_assignments',
             },
         ),
-        migrations.CreateModel(
-            name='CallLog',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('call_start', models.DateTimeField(auto_now_add=True)),
-                ('call_duration', models.IntegerField(default=0, verbose_name='통화 시간(초)')),
-                ('result_type', models.CharField(max_length=50, verbose_name='통신사 결과값')),
-                ('is_billable', models.BooleanField(default=True)),
-                ('recording_file', models.FileField(blank=True, null=True, upload_to='recordings/%Y/%m/')),
-                ('agent', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='agents.agent')),
-                ('assignment', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='call_logs', to='sales.salesassignment')),
-            ],
-            options={
-                'db_table': 'tm_call_logs',
-            },
-        ),
         migrations.AddIndex(
             model_name='salesassignment',
             index=models.Index(fields=['agent', 'stage', 'status'], name='tm_sales_as_agent_i_a688bb_idx'),
