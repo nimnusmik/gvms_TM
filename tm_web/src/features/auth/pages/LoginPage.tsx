@@ -34,7 +34,9 @@ export default function LoginPage() {
     try {
       const data = await authApi.login({ email, password })
       
-      if (!data.is_staff) {
+      const levelId = data.user?.level?.level_id ?? 0
+      const isAdminLevel = levelId >= 7
+      if (!data.is_staff && !isAdminLevel) {
         toast.error("접근 거부", { description: "관리자만 접근 가능합니다." })
         storage.clearTokens()
         return 

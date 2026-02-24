@@ -5,7 +5,13 @@ import type { SalesAssignment } from "../types";
 
 const PAGE_SIZE = 50;
 
-export function useCustomerList() {
+interface UseCustomerListOptions {
+  initialStatus?: string;
+  lockedStatus?: string;
+}
+
+export function useCustomerList(options: UseCustomerListOptions = {}) {
+  const { initialStatus, lockedStatus } = options;
   const [customers, setCustomers] = useState<SalesAssignment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -13,11 +19,20 @@ export function useCustomerList() {
   const [totalCount, setTotalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusFilter, setStatusFilterState] = useState(initialStatus ?? "ALL");
   const [agentFilter, setAgentFilter] = useState("ALL");
   const [secondaryStatusFilter, setSecondaryStatusFilter] = useState("ALL");
   const [secondaryAgentFilter, setSecondaryAgentFilter] = useState("ALL");
   const prevFilterKey = useRef<string>("");
+  const effectiveStatus = lockedStatus ?? statusFilter;
+
+  const setStatusFilter = useCallback(
+    (value: string) => {
+      if (lockedStatus) return;
+      setStatusFilterState(value);
+    },
+    [lockedStatus]
+  );
 
   const fetchData = useCallback(
     async (targetPage: number) => {
@@ -26,7 +41,7 @@ export function useCustomerList() {
         const data = await customerApi.getCustomers({
           page: targetPage,
           search: activeSearch,
-          status: statusFilter === "ALL" ? undefined : statusFilter,
+          status: effectiveStatus === "ALL" ? undefined : effectiveStatus,
           agentId: agentFilter === "ALL" ? undefined : agentFilter,
           secondaryStatus: secondaryStatusFilter === "ALL" ? undefined : secondaryStatusFilter,
           secondaryAgentId: secondaryAgentFilter === "ALL" ? undefined : secondaryAgentFilter,
@@ -43,10 +58,10 @@ export function useCustomerList() {
         setIsLoading(false);
       }
     },
-    [activeSearch, statusFilter, agentFilter, secondaryStatusFilter, secondaryAgentFilter]
+    [activeSearch, effectiveStatus, agentFilter, secondaryStatusFilter, secondaryAgentFilter]
   );
 
-  const filterKey = `${activeSearch}|${statusFilter}|${agentFilter}|${secondaryStatusFilter}|${secondaryAgentFilter}`;
+  const filterKey = `${activeSearch}|${effectiveStatus}|${agentFilter}|${secondaryStatusFilter}|${secondaryAgentFilter}`;
 
   useEffect(() => {
     if (prevFilterKey.current !== filterKey) {
@@ -67,11 +82,11 @@ export function useCustomerList() {
   const resetFilters = useCallback(() => {
     setSearchTerm("");
     setActiveSearch("");
-    setStatusFilter("ALL");
+    setStatusFilterState(lockedStatus ?? "ALL");
     setAgentFilter("ALL");
     setSecondaryStatusFilter("ALL");
     setSecondaryAgentFilter("ALL");
-  }, []);
+  }, [lockedStatus]);
 
   const reloadPage = useCallback(() => {
     fetchData(page);
@@ -95,7 +110,7 @@ export function useCustomerList() {
     searchTerm,
     setSearchTerm,
     activeSearch,
-    statusFilter,
+    statusFilter: effectiveStatus,
     setStatusFilter,
     agentFilter,
     setAgentFilter,

@@ -5,6 +5,8 @@ import DashboardLayout from '@/features/dashboard/components/DashboardLayout';
 import DashboardOverviewPage from '@/features/dashboard/pages/DashboardOverviewPage';
 import AgentManagementPage from '@/features/agents/pages/AgentManagementPage';
 import CustomerManagementPage from '@/features/customers/pages/CustomerManagementPage';
+import FirstSuccessCustomerPage from '@/features/customers/pages/FirstSuccessCustomerPage';
+import RecycleCustomerPage from '@/features/customers/pages/RecycleCustomerPage';
 import ProtectedRoute from '@/features/auth/components/ProtectedRoute'; 
 import NoticePage from '@/features/notices/pages/NoticePage';
 import PerformancePage from '@/features/performance/pages/PerformancePage';
@@ -49,6 +51,14 @@ export const router = createBrowserRouter([
       {
         path: 'customers', // /dashboard/customer 접속 시
         element: <CustomerManagementPage />,
+      },
+      {
+        path: 'customers-success',
+        element: <FirstSuccessCustomerPage />,
+      },
+      {
+        path: 'customers-recycle',
+        element: <RecycleCustomerPage />,
       },
       {
         path: 'notices', //  /dashboard/notices 접속 시

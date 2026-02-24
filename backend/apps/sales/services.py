@@ -17,15 +17,14 @@ RECYCLE_TRYING_EXPIRE_DAYS = getattr(settings, "RECYCLE_TRYING_EXPIRE_DAYS", 7)
 RECYCLE_MIX_RATIO = getattr(settings, "RECYCLE_MIX_RATIO", 0.3)
 
 def _get_latest_assignment_queryset():
-    latest_assignment_subq = SalesAssignment.objects.filter(
-        customer_id=OuterRef("customer_id")
-    ).order_by("-assigned_at", "-id").values("id")[:1]
+    latest_id = Subquery(
+        SalesAssignment.objects.filter(customer_id=OuterRef("customer_id"))
+        .order_by("-assigned_at", "-id")
+        .values("id")[:1]
+    )
+    return SalesAssignment.objects.annotate(latest_id=latest_id).filter(id=F("latest_id"))
 
-    return SalesAssignment.objects.annotate(
-        latest_id=Subquery(latest_assignment_subq)
-    ).filter(id=F("latest_id"))
-
-def get_recycle_candidates(limit, exclude_agent_id=None):
+def get_recycle_candidates(limit=None, exclude_agent_id=None):
     now = timezone.now()
     cooldown_cutoff = now - timedelta(days=RECYCLE_COOLDOWN_DAYS)
     trying_cutoff = now - timedelta(days=RECYCLE_TRYING_EXPIRE_DAYS)
@@ -66,7 +65,10 @@ def get_recycle_candidates(limit, exclude_agent_id=None):
     if exclude_agent_id is not None:
         qs = qs.exclude(agent_id=exclude_agent_id)
 
-    return qs.order_by("last_contact_at")[:limit]
+    qs = qs.order_by("last_contact_at")
+    if limit:
+        return qs[:limit]
+    return qs
 
 def create_recycled_assignments(agent, count):
     if count <= 0:

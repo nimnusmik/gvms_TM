@@ -21,7 +21,7 @@ from .serializers import (
     AssignmentHistorySummarySerializer,
     AssignmentHistoryDetailSerializer
 )
-from .services import assign_leads_to_agent
+from .services import assign_leads_to_agent, get_recycle_candidates
 from .tasks import task_run_auto_assign
 from apps.agents.models import Agent
 
@@ -142,6 +142,150 @@ class SalesAssignmentViewSet(viewsets.ModelViewSet):
             return base_qs
         
         return base_qs.filter(agent=agent)
+
+    @action(detail=False, methods=['get'], url_path='recycle-candidates')
+    def recycle_candidates(self, request):
+        user = request.user
+        if not getattr(user, 'is_superuser', False):
+            if not hasattr(user, 'agent_profile'):
+                return Response({"detail": "권한이 없습니다."}, status=status.HTTP_403_FORBIDDEN)
+            agent = user.agent_profile
+            if agent.role not in ['ADMIN', 'MANAGER']:
+                return Response({"detail": "권한이 없습니다."}, status=status.HTTP_403_FORBIDDEN)
+
+        qs = get_recycle_candidates(limit=None).filter(stage=SalesAssignment.Stage.FIRST)
+        qs = qs.select_related('customer', 'agent', 'agent__user').annotate(
+            call_count=Count('call_logs')
+        ).prefetch_related(
+            Prefetch(
+                'child_assignments',
+                queryset=SalesAssignment.objects.filter(stage='2ND').select_related('agent', 'agent__user'),
+                to_attr='secondary_assignments'
+            )
+        )
+
+        qs = self.filter_queryset(qs)
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(qs, many=True)
+        return Response(serializer.data)
+
+    def _export_assignments(self, qs, filename_prefix):
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Assignments"
+
+        ws.append([
+            "배정ID",
+            "단계",
+            "단계표시",
+            "상태",
+            "상태표시",
+            "배정일시",
+            "수정일시",
+            "1차 담당자ID",
+            "1차 담당자명",
+            "1차 담당자코드",
+            "2차 배정ID",
+            "2차 상태",
+            "2차 상태표시",
+            "2차 담당자ID",
+            "2차 담당자명",
+            "2차 담당자코드",
+            "고객ID",
+            "고객명",
+            "전화번호",
+            "나이",
+            "성별",
+            "지역",
+            "분야1",
+            "분야2",
+            "분야3",
+            "지역1",
+            "지역2",
+            "재활용횟수",
+            "감도",
+            "관심아이템",
+            "메모",
+            "통화횟수",
+        ])
+
+        for assignment in qs:
+            secondary = None
+            if hasattr(assignment, 'secondary_assignments'):
+                secondary = assignment.secondary_assignments[0] if assignment.secondary_assignments else None
+            else:
+                secondary = assignment.child_assignments.filter(stage='2ND').select_related('agent', 'agent__user').first()
+
+            ws.append([
+                assignment.id,
+                assignment.stage,
+                assignment.get_stage_display(),
+                assignment.status,
+                assignment.get_status_display(),
+                timezone.localtime(assignment.assigned_at).isoformat() if assignment.assigned_at else "",
+                timezone.localtime(assignment.updated_at).isoformat() if assignment.updated_at else "",
+                str(assignment.agent.agent_id) if assignment.agent else "",
+                assignment.agent.user.name if assignment.agent and assignment.agent.user else "",
+                assignment.agent.code if assignment.agent else "",
+                secondary.id if secondary else "",
+                secondary.status if secondary else "",
+                secondary.get_status_display() if secondary else "",
+                str(secondary.agent.agent_id) if secondary and secondary.agent else "",
+                secondary.agent.user.name if secondary and secondary.agent and secondary.agent.user else "",
+                secondary.agent.code if secondary and secondary.agent else "",
+                assignment.customer.id if assignment.customer else "",
+                assignment.customer.name if assignment.customer else "",
+                assignment.customer.phone if assignment.customer else "",
+                assignment.customer.age if assignment.customer else "",
+                assignment.customer.gender if assignment.customer else "",
+                assignment.customer.region if assignment.customer else "",
+                assignment.customer.category_1 if assignment.customer else "",
+                assignment.customer.category_2 if assignment.customer else "",
+                assignment.customer.category_3 if assignment.customer else "",
+                assignment.customer.region_1 if assignment.customer else "",
+                assignment.customer.region_2 if assignment.customer else "",
+                assignment.customer.recycle_count if assignment.customer else "",
+                assignment.sentiment or "",
+                assignment.item_interested or "",
+                assignment.memo or "",
+                assignment.call_count if hasattr(assignment, 'call_count') else 0,
+            ])
+
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        filename = f"{filename_prefix}_{timezone.localtime(timezone.now()).date().isoformat()}.xlsx"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        wb.save(response)
+        return response
+
+    @action(detail=False, methods=['get'], url_path='success/export')
+    def success_export(self, request):
+        qs = self.get_queryset().filter(
+            stage=SalesAssignment.Stage.FIRST,
+            status=SalesAssignment.Status.SUCCESS
+        )
+        qs = self.filter_queryset(qs)
+        return self._export_assignments(qs, "success_db")
+
+    @action(detail=False, methods=['get'], url_path='recycle/export')
+    def recycle_export(self, request):
+        qs = get_recycle_candidates(limit=None).filter(stage=SalesAssignment.Stage.FIRST)
+        qs = qs.select_related('customer', 'agent', 'agent__user').annotate(
+            call_count=Count('call_logs')
+        ).prefetch_related(
+            Prefetch(
+                'child_assignments',
+                queryset=SalesAssignment.objects.filter(stage='2ND').select_related('agent', 'agent__user'),
+                to_attr='secondary_assignments'
+            )
+        )
+        qs = self.filter_queryset(qs)
+        return self._export_assignments(qs, "recycle_db")
 
     @action(detail=False, methods=['post'])
     def pull(self, request):

@@ -36,6 +36,16 @@ export default function DashboardLayout() {
       name: '고객 DB 관리', 
       path: '/dashboard/customers',
       icon: Database, 
+      children: [
+        {
+          name: '1차 성공 DB',
+          path: '/dashboard/customers-success',
+        },
+        {
+          name: '재활용 가능 DB',
+          path: '/dashboard/customers-recycle',
+        }
+      ]
     },
     { 
       name: '성과 분석', 

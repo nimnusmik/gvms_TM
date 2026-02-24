@@ -124,7 +124,7 @@ export function CustomerToolbar({
           value={statusFilter}
           onChange={(e) => onStatusChange(e.target.value)}
         >
-          <option value="ALL">모든 상태</option>
+          <option value="ALL">1차 상태</option>
           <option value="NEW">대기 (NEW)</option>
           <option value="ASSIGNED">배정됨 (ASSIGNED)</option>
           <option value="TRYING">통화중 (TRYING)</option>
@@ -139,7 +139,7 @@ export function CustomerToolbar({
           value={agentFilter}
           onChange={(e) => onAgentChange(e.target.value)}
         >
-          <option value="ALL">담당자 전체</option>
+          <option value="ALL">1차 담당자 전체</option>
           {agents.map((agent) => (
             <option key={agent.agent_id} value={String(agent.agent_id)}>
               {agent.name} ({agent.code})
