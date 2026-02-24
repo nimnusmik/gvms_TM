@@ -28,6 +28,7 @@ from apps.agents.models import Agent
 class SalesAssignmentViewSet(viewsets.ModelViewSet):
     serializer_class = SalesAssignmentSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    http_method_names = ["get", "post", "patch", "head", "options"]
     
     # 필터링: 1차/2차 구분, 상태별 조회
     filterset_fields = ['stage', 'status', 'sentiment', 'agent']
@@ -383,6 +384,7 @@ class SalesPullRequestViewSet(viewsets.ModelViewSet):
     serializer_class = SalesPullRequestSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    http_method_names = ["get", "post", "head", "options"]
     filterset_fields = ['status', 'agent']
     ordering_fields = ['created_at', 'processed_at']
     ordering = ['-created_at']

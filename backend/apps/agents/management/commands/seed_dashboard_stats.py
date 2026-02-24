@@ -1,3 +1,11 @@
+'''docker compose exec tm_backend python manage.py seed_dashboard_stats \
+    --days 30 \
+    --agents 3 \
+    --min-calls 120 \
+    --max-calls 200 \
+    --seed 123
+'''
+
 import random
 from datetime import datetime, timedelta
 

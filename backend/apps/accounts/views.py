@@ -10,6 +10,7 @@ from .serializers import (
     UserRegistrationSerializer
 )
 from django.contrib.auth import get_user_model
+from apps.agents.permissions import IsAdminOrManager
 
 #####################################로그인#####################################
 
@@ -21,14 +22,14 @@ class LoginView(TokenObtainPairView):
 class AccountViewSet(viewsets.ModelViewSet):
     queryset = Account.objects.all().order_by('-created_at')
     # 조건문 
-    permission_classes = [IsAuthenticated] 
+    permission_classes = [IsAdminOrManager]
     serializer_class = AccountSerializer
     
 # 3. 등급 관리 CRUD (관리자용)
 class LevelViewSet(viewsets.ModelViewSet):
     queryset = MemberLevel.objects.all()
     serializer_class = LevelSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminOrManager]
 
 #####################################회원가입#####################################
 

@@ -18,6 +18,7 @@ class CallLogViewSet(viewsets.ModelViewSet):
     queryset = CallLog.objects.all()
     serializer_class = CallLogSerializer
     permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["get", "post", "head", "options"]
 
     def _check_calllog_access(self, call_log, user):
         if not user or not user.is_authenticated:

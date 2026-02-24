@@ -5,6 +5,9 @@
 
 ## /dashboard (DashboardOverviewPage)
 - GET `/agents/dashboard_stats/`
+  - Optional query params:
+    - `table_days`: 최근 N일 기준으로 테이블 지표 집계
+    - `start_date`, `end_date`: `YYYY-MM-DD` 범위 지정 (둘 다 있어야 적용)
   - 통계 카드, Top 3 성과자(table), 통화 추이(chart)
   - 파일: `tm_web/src/features/dashboard/hooks/useDashboardStats.ts`
 

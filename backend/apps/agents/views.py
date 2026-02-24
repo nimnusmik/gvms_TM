@@ -19,6 +19,7 @@ from apps.sales.services import assign_leads_to_agent
 from apps.sales.models import SalesAssignment
 from apps.sales.serializers import SalesAssignmentSerializer
 from apps.calls.models import CallLog
+from .permissions import IsAdminOrManager
 
 User = get_user_model()
 
@@ -170,6 +171,34 @@ class AgentViewSet(viewsets.ModelViewSet):
         today = timezone.localtime().date()
         team_filter = request.query_params.get('team')
 
+        # 테이블 집계 기간 (기본: 오늘)
+        table_days = request.query_params.get('table_days')
+        start_date_param = request.query_params.get('start_date')
+        end_date_param = request.query_params.get('end_date')
+
+        table_start = today
+        table_end = today
+
+        if start_date_param and end_date_param:
+            try:
+                table_start = timezone.datetime.strptime(start_date_param, '%Y-%m-%d').date()
+                table_end = timezone.datetime.strptime(end_date_param, '%Y-%m-%d').date()
+            except ValueError:
+                table_start = today
+                table_end = today
+        elif table_days:
+            try:
+                days_int = int(table_days)
+                if days_int > 0:
+                    table_start = today - timedelta(days=days_int - 1)
+                    table_end = today
+            except (TypeError, ValueError):
+                table_start = today
+                table_end = today
+
+        if table_start > table_end:
+            table_start, table_end = table_end, table_start
+
         # 1. 상담원 리스트
         agents = Agent.objects.all()
         
@@ -181,7 +210,8 @@ class AgentViewSet(viewsets.ModelViewSet):
         )
 
         call_stats = CallLog.objects.filter(
-            call_start__date=today
+            call_start__date__gte=table_start,
+            call_start__date__lte=table_end
         ).values(
             'agent_id'
         ).annotate(
@@ -366,3 +396,17 @@ class AgentViewSet(viewsets.ModelViewSet):
         return Response({
             "message": f"총 {len(active_agents)}명 중 {participated_agents}명에게 {total_assigned}건의 DB가 리필되었습니다."
         })
+
+    def get_permissions(self):
+        admin_actions = {
+            "create",
+            "update",
+            "partial_update",
+            "destroy",
+            "resign",
+            "candidates",
+            "run_daily_assign",
+        }
+        if getattr(self, "action", None) in admin_actions:
+            return [IsAdminOrManager()]
+        return [permission() for permission in self.permission_classes]
