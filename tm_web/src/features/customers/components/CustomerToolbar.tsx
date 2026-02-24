@@ -189,7 +189,7 @@ export function CustomerToolbar({
             <Loader2 className="h-4 w-4 animate-spin" />
             <span className="font-semibold">대용량 엑셀 처리 중</span>
             <span className="text-amber-800/80">
-              백그라운드에서 처리 중입니다. 완료 후 새로고침 해주세요.
+              백그라운드에서 처리 중입니다. 
             </span>
           </div>
           <Button

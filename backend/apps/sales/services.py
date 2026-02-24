@@ -74,7 +74,7 @@ def create_recycled_assignments(agent, count):
 
     with transaction.atomic():
         candidates = list(
-            get_recycle_candidates(count, exclude_agent_id=agent.pk).select_for_update()
+            get_recycle_candidates(count, exclude_agent_id=agent.pk).select_for_update(skip_locked=True)
         )
         if not candidates:
             return 0
@@ -141,7 +141,7 @@ def assign_leads_to_agent(agent, count=None): # count가 None이면 자동 계�
 
     # 4. 신규 배정 트랜잭션 실행
     with transaction.atomic():
-        target_assignments = SalesAssignment.objects.select_for_update().filter(
+        target_assignments = SalesAssignment.objects.select_for_update(skip_locked=True).filter(
             stage=SalesAssignment.Stage.FIRST, # 변경
             status=SalesAssignment.Status.NEW, # 변경
             agent__isnull=True
@@ -169,7 +169,7 @@ def assign_leads_to_agent(agent, count=None): # count가 None이면 자동 계�
         return assigned_new + assigned_recycle
 
     with transaction.atomic():
-        extra_new = SalesAssignment.objects.select_for_update().filter(
+        extra_new = SalesAssignment.objects.select_for_update(skip_locked=True).filter(
             stage=SalesAssignment.Stage.FIRST,
             status=SalesAssignment.Status.NEW,
             agent__isnull=True

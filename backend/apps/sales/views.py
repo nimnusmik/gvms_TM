@@ -106,7 +106,7 @@ class SalesAssignmentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        base_qs = SalesAssignment.objects.select_related('customer', 'agent').annotate(
+        base_qs = SalesAssignment.objects.select_related('customer', 'agent', 'agent__user').annotate(
             call_count=Count('call_logs')
         ).prefetch_related(
             Prefetch(
