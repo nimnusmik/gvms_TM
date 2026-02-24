@@ -21,9 +21,10 @@ urlpatterns = [
 
     # 6. 상담결과
     path('api/v1/calls/', include('apps.calls.urls')), 
+    # 7. 정산관리
+    path('api/v1/settlements/', include('apps.settlements.urls')),
 
     # 
     path('ai/', include('apps.ai_service.urls')),
 
 ]
-

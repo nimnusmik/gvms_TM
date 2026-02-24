@@ -12,6 +12,7 @@ import NoticePage from '@/features/notices/pages/NoticePage';
 import PerformancePage from '@/features/performance/pages/PerformancePage';
 import AiServicePage from '@/features/ai_service/pages/AiServicePage';
 import AssignmentHistoryPage from '@/features/assignments/pages/AssignmentHistoryPage';
+import SettlementPage from '@/features/settlement/pages/SettlementPage';
 
 export const router = createBrowserRouter([
   // 1. 누구나 접속 가능한 페이지
@@ -75,6 +76,10 @@ export const router = createBrowserRouter([
       {
         path: 'assignment-history',
         element: <AssignmentHistoryPage />,
+      },
+      {
+        path: 'settlement',
+        element: <SettlementPage />,
       },
     ],
   },

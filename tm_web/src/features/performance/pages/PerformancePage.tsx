@@ -22,10 +22,15 @@ export default function PerformancePage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [statsResult, agentsResult] = await Promise.allSettled([
+        const [statsResult, todayStatsResult, agentsResult] = await Promise.allSettled([
           api.get('/agents/dashboard_stats/', {
             params: {
               table_days: tableDays
+            }
+          }),
+          api.get('/agents/dashboard_stats/', {
+            params: {
+              table_days: 1
             }
           }),
           api.get('/agents/')
@@ -33,13 +38,15 @@ export default function PerformancePage() {
 
         const stats =
           statsResult.status === 'fulfilled' ? (statsResult.value.data ?? {}) : {};
+        const todayStats =
+          todayStatsResult.status === 'fulfilled' ? (todayStatsResult.value.data ?? {}) : {};
 
         const agents =
           agentsResult.status === 'fulfilled' && Array.isArray(agentsResult.value.data)
             ? agentsResult.value.data
             : [];
 
-        const statsCards = Array.isArray(stats.cards) ? stats.cards : [];
+        const statsCards = Array.isArray(todayStats.cards) ? todayStats.cards : [];
 
         const cards: AgentCard[] =
           statsCards.length > 0
