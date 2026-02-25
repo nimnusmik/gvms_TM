@@ -90,7 +90,6 @@ class SettlementViewSet(viewsets.GenericViewSet):
         start_dt, end_dt, _ = _get_kst_range(range_start, range_end)
         qs = CallLog.objects.filter(
             call_start__range=(start_dt, end_dt),
-            is_billable=True,
             result_type__in=RESULT_TYPES,
             agent__in=agents,
         )
@@ -168,7 +167,6 @@ class SettlementViewSet(viewsets.GenericViewSet):
         start_dt, end_dt, _ = _get_kst_range(range_start, range_end)
         qs = CallLog.objects.filter(
             call_start__range=(start_dt, end_dt),
-            is_billable=True,
             result_type__in=RESULT_TYPES,
             agent__in=agents,
         )

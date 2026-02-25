@@ -66,8 +66,8 @@ export function SuccessCustomerToolbar({
         }
       />
 
-      <div className="flex flex-wrap items-center gap-2 bg-white p-3 rounded-lg border shadow-sm">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="success-toolbar flex flex-nowrap items-center gap-2 bg-white p-3 rounded-lg border shadow-sm">
+        <div className="relative flex-[2] min-w-[220px]">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
           <Input
             placeholder="고객명, 전화번호, 메모 검색 (Enter)"
@@ -77,10 +77,6 @@ export function SuccessCustomerToolbar({
             onKeyDown={onSearchKeyDown}
           />
         </div>
-
-        <select className="customer-filter-select" value="SUCCESS" disabled>
-          <option value="SUCCESS">1차 상태: 성공 (SUCCESS)</option>
-        </select>
 
         <select
           className="customer-filter-select"

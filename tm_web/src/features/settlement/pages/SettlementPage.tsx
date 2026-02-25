@@ -355,7 +355,7 @@ export default function SettlementPage() {
             <p className="text-sm text-gray-400 mt-1">상태/비고/최종 정산액을 수정할 수 있습니다.</p>
           </div>
           <div className="text-xs text-gray-400">
-            정산 기준: 동의 2,000원 · 거절 700원 · 결번 0원 · 부재 0원 (is_billable=TRUE)
+            정산 기준: 동의 2,000원 · 거절 700원 · 결번 0원 · 부재 0원
           </div>
         </div>
 

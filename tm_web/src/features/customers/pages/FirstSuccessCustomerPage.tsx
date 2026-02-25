@@ -6,10 +6,14 @@ import { agentApi } from "@/features/agents/api/agentApi";
 import type { Agent } from "@/features/agents/types";
 import { SuccessCustomerToolbar } from "../components/SuccessCustomerToolbar";
 import { customerApi } from "../api/customerApi";
+import type { SalesAssignment } from "../types";
+import { CallLogDialog } from "@/features/calls/components/CallLogDialog";
 
 export default function FirstSuccessCustomerPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [exporting, setExporting] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<SalesAssignment | null>(null);
+  const [callLogOpen, setCallLogOpen] = useState(false);
 
   const {
     customers,
@@ -79,6 +83,11 @@ export default function FirstSuccessCustomerPage() {
     }
   };
 
+  const handleOpenCallLogs = (assignment: SalesAssignment) => {
+    setSelectedAssignment(assignment);
+    setCallLogOpen(true);
+  };
+
   return (
     <div className="p-6 space-y-4">
       <SuccessCustomerToolbar
@@ -115,6 +124,14 @@ export default function FirstSuccessCustomerPage() {
         onNextPage={() => setPage(Math.min(totalPages, page + 1))}
         readOnly
         showSelection={false}
+        onOpenCallLogs={handleOpenCallLogs}
+      />
+
+      <CallLogDialog
+        open={callLogOpen}
+        onOpenChange={setCallLogOpen}
+        assignmentId={selectedAssignment?.id}
+        customerName={selectedAssignment?.customer?.name}
       />
     </div>
   );

@@ -13,6 +13,7 @@ interface CustomerTableProps {
   onSelectAll?: (checked: boolean) => void;
   onSelectRow?: (id: number) => void;
   onUpdateSecondaryStatus?: (secondaryId: number, status: string) => void;
+  onOpenCallLogs?: (assignment: SalesAssignment) => void;
   onPrevPage: () => void;
   onNextPage: () => void;
   readOnly?: boolean;
@@ -28,13 +29,14 @@ export function CustomerTable({
   onSelectAll,
   onSelectRow,
   onUpdateSecondaryStatus,
+  onOpenCallLogs,
   onPrevPage,
   onNextPage,
   readOnly = false,
   showSelection,
 }: CustomerTableProps) {
   const isSelectionVisible = showSelection ?? !readOnly;
-  const columnCount = isSelectionVisible ? 12 : 11;
+  const columnCount = isSelectionVisible ? 13 : 12;
   return (
     <div className="bg-white rounded-lg shadow border overflow-hidden flex flex-col h-full">
       <div className="overflow-x-auto">
@@ -71,23 +73,26 @@ export function CustomerTable({
                 분야3
               </th>
               
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 1차 담당자
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 상태 (1차)
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 2차 담당자 
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 상태 (2차)
               </th>
              
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap min-w-[90px]">
                 통화
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap min-w-[120px]">
+                통화기록
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap min-w-[100px]">
                 등록일
               </th>
             </tr>
@@ -238,11 +243,23 @@ export function CustomerTable({
 
                   {/* 8. 통화 횟수 */}
                   <td className="px-6 py-4 whitespace-nowrap text-center">
-                     <span className={`text-xs font-mono font-bold px-2 py-1 rounded-md ${
-                       (assignment.call_count || 0) > 0 ? 'bg-orange-50 text-orange-600' : 'text-gray-300'
-                     }`}>
-                       {assignment.call_count || 0}회
-                     </span>
+                    <span
+                      className={`text-xs font-mono font-bold px-2 py-1 rounded-md ${
+                        (assignment.call_count || 0) > 0 ? "bg-orange-50 text-orange-600" : "text-gray-300"
+                      }`}
+                    >
+                      {assignment.call_count || 0}회
+                    </span>
+                  </td>
+
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    {onOpenCallLogs ? (
+                      <Button size="sm" variant="outline" onClick={() => onOpenCallLogs(assignment)}>
+                        통화기록
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-gray-400">-</span>
+                    )}
                   </td>
 
                   {/* 9. 등록일 */}
