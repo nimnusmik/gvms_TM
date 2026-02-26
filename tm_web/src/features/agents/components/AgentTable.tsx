@@ -73,8 +73,8 @@ export function AgentTable({ agents, isLoading, onEdit }: AgentTableProps) {
 
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-1.5 text-sm">
-                    <span className={`font-bold ${(agent.assigned_count || 0) >= agent.daily_cap ? "text-red-600" : "text-blue-600"}`}>
-                      {agent.assigned_count || 0}
+                    <span className={`font-bold ${(agent.daily_assigned_count || 0) >= agent.daily_cap ? "text-red-600" : "text-blue-600"}`}>
+                      {agent.daily_assigned_count || 0}
                     </span>
                     <span className="text-gray-300">/</span>
                     <span className="text-gray-600">{agent.daily_cap} 건</span>

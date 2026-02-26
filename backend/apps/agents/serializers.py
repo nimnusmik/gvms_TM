@@ -60,6 +60,7 @@ class AgentSerializer(serializers.ModelSerializer):
     name = serializers.CharField(source='user.name', read_only=True)
     email = serializers.CharField(source='user.email', read_only=True)
     assigned_count = serializers.IntegerField(read_only=True)
+    daily_assigned_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Agent
@@ -77,5 +78,6 @@ class AgentSerializer(serializers.ModelSerializer):
             'created_at',
             'code',
             'assigned_count',
+            'daily_assigned_count',
         ]
-        read_only_fields = ['agent_id', 'created_at', 'code', 'assigned_count']
+        read_only_fields = ['agent_id', 'created_at', 'code', 'assigned_count', 'daily_assigned_count']

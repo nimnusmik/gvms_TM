@@ -43,4 +43,5 @@ export interface Agent {
     
     team: string | null;
     assigned_count: number;
+    daily_assigned_count: number;
   }

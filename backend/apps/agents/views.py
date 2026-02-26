@@ -96,11 +96,19 @@ class AgentViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     def get_queryset(self):
+        today = timezone.localtime().date()
+        kst = timezone.get_current_timezone()
+        start_of_day = timezone.make_aware(datetime.combine(today, datetime.min.time()), kst)
+        end_of_day = timezone.make_aware(datetime.combine(today, datetime.max.time()), kst)
         return Agent.objects.annotate(
             assigned_count=Count(
                 'assignments',
                 filter=Q(assignments__status__in=['ASSIGNED', 'TRYING'])
-            )
+            ),
+            daily_assigned_count=Count(
+                'assignments',
+                filter=Q(assignments__assigned_at__range=(start_of_day, end_of_day))
+            ),
         ).order_by('-created_at')
 
     # ----------------------------------------------------------------
