@@ -23,7 +23,6 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'tm_call_logs',
-                'managed': False,
             },
         ),
     ]

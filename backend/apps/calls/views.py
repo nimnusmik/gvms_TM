@@ -18,6 +18,8 @@ class CallLogViewSet(viewsets.ModelViewSet):
     queryset = CallLog.objects.all()
     serializer_class = CallLogSerializer
     permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["get", "post", "head", "options"]
+    filterset_fields = ["assignment", "agent"]
 
     def _check_calllog_access(self, call_log, user):
         if not user or not user.is_authenticated:
@@ -74,7 +76,7 @@ class CallLogViewSet(viewsets.ModelViewSet):
         
         # 1. 배정 건(Assignment) 가져오기
         assignment = serializer.validated_data['assignment']
-        call_result = serializer.validated_data.get('result')
+        call_result = serializer.validated_data.get('result_type')
 
         # 2. 변경 전 상태 기록 (Before)
         status_before = assignment.status

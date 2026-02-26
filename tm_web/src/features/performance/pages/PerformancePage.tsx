@@ -16,25 +16,37 @@ export default function PerformancePage() {
   });
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [tableDays, setTableDays] = useState(7);
 
   // 데이터 불러오기
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [statsResult, agentsResult] = await Promise.allSettled([
-          api.get('/agents/dashboard_stats/'),
+        const [statsResult, todayStatsResult, agentsResult] = await Promise.allSettled([
+          api.get('/agents/dashboard_stats/', {
+            params: {
+              table_days: tableDays
+            }
+          }),
+          api.get('/agents/dashboard_stats/', {
+            params: {
+              table_days: 1
+            }
+          }),
           api.get('/agents/')
         ]);
 
         const stats =
           statsResult.status === 'fulfilled' ? (statsResult.value.data ?? {}) : {};
+        const todayStats =
+          todayStatsResult.status === 'fulfilled' ? (todayStatsResult.value.data ?? {}) : {};
 
         const agents =
           agentsResult.status === 'fulfilled' && Array.isArray(agentsResult.value.data)
             ? agentsResult.value.data
             : [];
 
-        const statsCards = Array.isArray(stats.cards) ? stats.cards : [];
+        const statsCards = Array.isArray(todayStats.cards) ? todayStats.cards : [];
 
         const cards: AgentCard[] =
           statsCards.length > 0
@@ -70,7 +82,7 @@ export default function PerformancePage() {
     // 10초마다 자동 갱신 (실시간 대시보드 느낌)
     const interval = setInterval(fetchStats, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [tableDays]);
 
   if (loading) return <div className="p-6">데이터를 불러오는 중...</div>;
 
@@ -143,7 +155,27 @@ export default function PerformancePage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
 
           <div className="lg:col-span-6 h-full">
-            <MetricsTable data={data.table} />
+            <MetricsTable
+              data={data.table}
+              headerRight={(
+                <div className="flex items-center rounded-full bg-gray-100 p-1">
+                  {[7, 14, 30].map((days) => (
+                    <button
+                      key={days}
+                      type="button"
+                      onClick={() => setTableDays(days)}
+                      className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                        tableDays === days
+                          ? 'bg-gray-900 text-white'
+                          : 'text-gray-600 hover:bg-white'
+                      }`}
+                    >
+                      최근 {days}일
+                    </button>
+                  ))}
+                </div>
+              )}
+            />
           </div>
           <div className="lg:col-span-6 h-full">
             <AgentTrendChart data={data.agentTrends} />

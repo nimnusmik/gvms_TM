@@ -13,12 +13,13 @@ from .serializers import AgentSerializer
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import Coalesce, TruncDate
 from django.utils import timezone
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from apps.sales.services import assign_leads_to_agent 
 from apps.sales.models import SalesAssignment
 from apps.sales.serializers import SalesAssignmentSerializer
 from apps.calls.models import CallLog
+from .permissions import IsAdminOrManager
 
 User = get_user_model()
 
@@ -86,18 +87,28 @@ class AgentViewSet(viewsets.ModelViewSet):
     def customers(self, request, pk=None):
         agent = self.get_object()
         
-        my_assignments = SalesAssignment.objects.filter(agent=agent).select_related('customer').annotate(
+        my_assignments = SalesAssignment.objects.filter(agent=agent).select_related(
+            'customer', 'agent', 'agent__user'
+        ).annotate(
             call_count=Count('call_logs')
         ).order_by('-updated_at')
         serializer = SalesAssignmentSerializer(my_assignments, many=True)
         return Response(serializer.data)
 
     def get_queryset(self):
+        today = timezone.localtime().date()
+        kst = timezone.get_current_timezone()
+        start_of_day = timezone.make_aware(datetime.combine(today, datetime.min.time()), kst)
+        end_of_day = timezone.make_aware(datetime.combine(today, datetime.max.time()), kst)
         return Agent.objects.annotate(
             assigned_count=Count(
                 'assignments',
                 filter=Q(assignments__status__in=['ASSIGNED', 'TRYING'])
-            )
+            ),
+            daily_assigned_count=Count(
+                'assignments',
+                filter=Q(assignments__assigned_at__range=(start_of_day, end_of_day))
+            ),
         ).order_by('-created_at')
 
     # ----------------------------------------------------------------
@@ -170,6 +181,34 @@ class AgentViewSet(viewsets.ModelViewSet):
         today = timezone.localtime().date()
         team_filter = request.query_params.get('team')
 
+        # 테이블 집계 기간 (기본: 오늘)
+        table_days = request.query_params.get('table_days')
+        start_date_param = request.query_params.get('start_date')
+        end_date_param = request.query_params.get('end_date')
+
+        table_start = today
+        table_end = today
+
+        if start_date_param and end_date_param:
+            try:
+                table_start = timezone.datetime.strptime(start_date_param, '%Y-%m-%d').date()
+                table_end = timezone.datetime.strptime(end_date_param, '%Y-%m-%d').date()
+            except ValueError:
+                table_start = today
+                table_end = today
+        elif table_days:
+            try:
+                days_int = int(table_days)
+                if days_int > 0:
+                    table_start = today - timedelta(days=days_int - 1)
+                    table_end = today
+            except (TypeError, ValueError):
+                table_start = today
+                table_end = today
+
+        if table_start > table_end:
+            table_start, table_end = table_end, table_start
+
         # 1. 상담원 리스트
         agents = Agent.objects.all()
         
@@ -180,8 +219,16 @@ class AgentViewSet(viewsets.ModelViewSet):
             'agent_id', 'user__name', 'team', 'status', 'daily_cap', 'assigned_phone', 'is_auto_assign'
         )
 
+        kst = timezone.get_current_timezone()
+        table_start_dt = timezone.make_aware(
+            datetime.combine(table_start, datetime.min.time()), kst
+        )
+        table_end_dt = timezone.make_aware(
+            datetime.combine(table_end, datetime.max.time()), kst
+        )
+
         call_stats = CallLog.objects.filter(
-            call_start__date=today
+            call_start__range=(table_start_dt, table_end_dt)
         ).values(
             'agent_id'
         ).annotate(
@@ -247,8 +294,12 @@ class AgentViewSet(viewsets.ModelViewSet):
         # 3. [차트 데이터] 최근 7일간 추이
         seven_days_ago = today - timedelta(days=6)
         
+        seven_days_ago_dt = timezone.make_aware(
+            datetime.combine(seven_days_ago, datetime.min.time()), kst
+        )
+
         daily_trends = CallLog.objects.filter(
-            call_start__date__gte=seven_days_ago
+            call_start__gte=seven_days_ago_dt
         ).annotate(
             date=TruncDate('call_start')
         ).values('date').annotate(
@@ -284,7 +335,7 @@ class AgentViewSet(viewsets.ModelViewSet):
         if agent_ids:
             agent_trends = (
                 CallLog.objects.filter(
-                    call_start__date__gte=seven_days_ago,
+                    call_start__gte=seven_days_ago_dt,
                     agent_id__in=agent_ids
                 )
                 .annotate(date=TruncDate('call_start'))
@@ -311,12 +362,26 @@ class AgentViewSet(viewsets.ModelViewSet):
         }
 
         # 4. 상단 통계 카드용 요약
-        total_agents = agents.count()
-        active_agents = agents.exclude(status='OFFLINE').count()
-        total_customers = SalesAssignment.objects.count()
-        new_customers = SalesAssignment.objects.filter(status='NEW', agent__isnull=True).count()
-        success_customers = SalesAssignment.objects.filter(status='SUCCESS').count()
-        today_total_calls = CallLog.objects.filter(call_start__date=today).count()
+        agent_agg = agents.aggregate(
+            total=Count('agent_id'),
+            active=Count('agent_id', filter=~Q(status='OFFLINE')),
+        )
+        assignment_agg = SalesAssignment.objects.aggregate(
+            total=Count('id'),
+            new=Count('id', filter=Q(status='NEW', agent__isnull=True)),
+            success=Count('id', filter=Q(status='SUCCESS')),
+        )
+        today_start = timezone.make_aware(datetime.combine(today, datetime.min.time()), kst)
+        today_end = timezone.make_aware(datetime.combine(today, datetime.max.time()), kst)
+        today_total_calls = CallLog.objects.filter(
+            call_start__range=(today_start, today_end)
+        ).aggregate(total=Count('id'))['total'] or 0
+
+        total_agents = agent_agg['total'] or 0
+        active_agents = agent_agg['active'] or 0
+        total_customers = assignment_agg['total'] or 0
+        new_customers = assignment_agg['new'] or 0
+        success_customers = assignment_agg['success'] or 0
         success_rate = round((success_customers / total_customers) * 100, 1) if total_customers > 0 else 0
 
         return Response({
@@ -366,3 +431,17 @@ class AgentViewSet(viewsets.ModelViewSet):
         return Response({
             "message": f"총 {len(active_agents)}명 중 {participated_agents}명에게 {total_assigned}건의 DB가 리필되었습니다."
         })
+
+    def get_permissions(self):
+        admin_actions = {
+            "create",
+            "update",
+            "partial_update",
+            "destroy",
+            "resign",
+            "candidates",
+            "run_daily_assign",
+        }
+        if getattr(self, "action", None) in admin_actions:
+            return [IsAdminOrManager()]
+        return [permission() for permission in self.permission_classes]

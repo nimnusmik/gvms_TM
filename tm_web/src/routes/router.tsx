@@ -5,11 +5,14 @@ import DashboardLayout from '@/features/dashboard/components/DashboardLayout';
 import DashboardOverviewPage from '@/features/dashboard/pages/DashboardOverviewPage';
 import AgentManagementPage from '@/features/agents/pages/AgentManagementPage';
 import CustomerManagementPage from '@/features/customers/pages/CustomerManagementPage';
+import FirstSuccessCustomerPage from '@/features/customers/pages/FirstSuccessCustomerPage';
+import RecycleCustomerPage from '@/features/customers/pages/RecycleCustomerPage';
 import ProtectedRoute from '@/features/auth/components/ProtectedRoute'; 
 import NoticePage from '@/features/notices/pages/NoticePage';
 import PerformancePage from '@/features/performance/pages/PerformancePage';
 import AiServicePage from '@/features/ai_service/pages/AiServicePage';
 import AssignmentHistoryPage from '@/features/assignments/pages/AssignmentHistoryPage';
+import SettlementPage from '@/features/settlement/pages/SettlementPage';
 
 export const router = createBrowserRouter([
   // 1. 누구나 접속 가능한 페이지
@@ -51,6 +54,14 @@ export const router = createBrowserRouter([
         element: <CustomerManagementPage />,
       },
       {
+        path: 'customers-success',
+        element: <FirstSuccessCustomerPage />,
+      },
+      {
+        path: 'customers-recycle',
+        element: <RecycleCustomerPage />,
+      },
+      {
         path: 'notices', //  /dashboard/notices 접속 시
         element: <NoticePage />,
       },
@@ -65,6 +76,10 @@ export const router = createBrowserRouter([
       {
         path: 'assignment-history',
         element: <AssignmentHistoryPage />,
+      },
+      {
+        path: 'settlement',
+        element: <SettlementPage />,
       },
     ],
   },

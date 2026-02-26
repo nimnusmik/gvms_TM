@@ -27,6 +27,41 @@ export const customerApi = {
       return response.data;
     },
 
+  getRecycleCandidates: async (params: { page?: number; search?: string }) => {
+      const { page = 1, search } = params;
+      const queryParams = new URLSearchParams();
+      queryParams.append('page', page.toString());
+      if (search) queryParams.append('search', search);
+
+      const response = await api.get<PaginatedResponse<SalesAssignment>>(`/sales/recycle-candidates/?${queryParams.toString()}`);
+      return response.data;
+    },
+
+  exportSuccessDb: async (params: { search?: string; agentId?: string; secondaryStatus?: string; secondaryAgentId?: string }) => {
+      const { search, agentId, secondaryStatus, secondaryAgentId } = params;
+      const queryParams = new URLSearchParams();
+      if (search) queryParams.append('search', search);
+      if (agentId && agentId !== 'ALL') queryParams.append('agent', agentId);
+      if (secondaryStatus && secondaryStatus !== 'ALL') queryParams.append('secondary_status', secondaryStatus);
+      if (secondaryAgentId && secondaryAgentId !== 'ALL') queryParams.append('secondary_agent', secondaryAgentId);
+
+      const response = await api.get(`/sales/success/export/?${queryParams.toString()}`, {
+        responseType: 'blob',
+      });
+      return response;
+    },
+
+  exportRecycleDb: async (params: { search?: string }) => {
+      const { search } = params;
+      const queryParams = new URLSearchParams();
+      if (search) queryParams.append('search', search);
+
+      const response = await api.get(`/sales/recycle/export/?${queryParams.toString()}`, {
+        responseType: 'blob',
+      });
+      return response;
+    },
+
   // 2. 엑셀 업로드 (핵심!)
   uploadExcel: async (file: File) => {
     const formData = new FormData();

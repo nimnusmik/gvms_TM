@@ -13,6 +13,7 @@ import environ
 import os 
 from pathlib import Path
 import sys
+from celery.schedules import crontab
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -66,10 +67,12 @@ INSTALLED_APPS = [
     'sales',
     'calls',
     'ai_service', #테스트용
+    'apps.settlements',
 
     'django_celery_results',
     'django_filters',
     'storages',
+    'django_extensions',
 ]
 
 MIDDLEWARE = [
@@ -186,6 +189,16 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
+
+# Celery (KST 기준 스케줄)
+CELERY_TIMEZONE = 'Asia/Seoul'
+CELERY_ENABLE_UTC = False
+CELERY_BEAT_SCHEDULE = {
+    'daily-auto-assign-9am-kst': {
+        'task': 'apps.sales.tasks.task_run_auto_assign',
+        'schedule': crontab(hour=9, minute=0, day_of_week='1-5'),
+    },
+}
 
 
 # Static files (CSS, JavaScript, Images)

@@ -11,9 +11,17 @@ interface AgentTableProps {
   agents: Agent[];
   isLoading: boolean;
   onEdit: (agent: Agent) => void;
+  onToggleAutoAssign: (agent: Agent, nextValue: boolean) => void;
+  autoAssignSavingMap?: Record<string, boolean>;
 }
 
-export function AgentTable({ agents, isLoading, onEdit }: AgentTableProps) {
+export function AgentTable({
+  agents,
+  isLoading,
+  onEdit,
+  onToggleAutoAssign,
+  autoAssignSavingMap = {},
+}: AgentTableProps) {
   return (
     <div className="bg-white rounded-lg shadow border overflow-hidden">
       <Table>
@@ -25,6 +33,7 @@ export function AgentTable({ agents, isLoading, onEdit }: AgentTableProps) {
             <TableHead>소속 팀</TableHead>
             <TableHead>사번</TableHead>
             <TableHead>일일 배정량</TableHead>
+            <TableHead>자동배정</TableHead>
             <TableHead>권한(Role)</TableHead>
             <TableHead className="text-right">작업</TableHead>
           </TableRow>
@@ -32,13 +41,13 @@ export function AgentTable({ agents, isLoading, onEdit }: AgentTableProps) {
         <TableBody>
           {isLoading ? (
             <TableRow>
-              <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+              <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
                 데이터 로딩 중...
               </TableCell>
             </TableRow>
           ) : agents.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+              <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
                 등록된 상담원이 없습니다.
               </TableCell>
             </TableRow>
@@ -73,12 +82,31 @@ export function AgentTable({ agents, isLoading, onEdit }: AgentTableProps) {
 
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-1.5 text-sm">
-                    <span className={`font-bold ${(agent.assigned_count || 0) >= agent.daily_cap ? "text-red-600" : "text-blue-600"}`}>
-                      {agent.assigned_count || 0}
+                    <span className={`font-bold ${(agent.daily_assigned_count || 0) >= agent.daily_cap ? "text-red-600" : "text-blue-600"}`}>
+                      {agent.daily_assigned_count || 0}
                     </span>
                     <span className="text-gray-300">/</span>
                     <span className="text-gray-600">{agent.daily_cap} 건</span>
                   </div>
+                </TableCell>
+
+                <TableCell>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={!!agent.is_auto_assign}
+                    onClick={() => onToggleAutoAssign(agent, !agent.is_auto_assign)}
+                    disabled={!!autoAssignSavingMap[agent.agent_id]}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      agent.is_auto_assign ? "bg-green-600" : "bg-gray-300"
+                    } ${autoAssignSavingMap[agent.agent_id] ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        agent.is_auto_assign ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
                 </TableCell>
 
                 <TableCell className="text-gray-500 text-xs uppercase">

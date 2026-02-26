@@ -28,7 +28,9 @@ export function LoginForm() {
       const data = await authApi.login(formData);
       
       // 관리자 체크
-      if (!data.is_staff) {
+      const levelId = data.user?.level?.level_id ?? 0;
+      const isAdminLevel = levelId >= 7;
+      if (!data.is_staff && !isAdminLevel) {
         toast.error("접근 거부", { description: "관리자만 접근 가능합니다." });
         return;
       }
@@ -37,7 +39,7 @@ export function LoginForm() {
       // (토큰 저장 + 상태 업데이트 동시에 처리됨)
       login(data.access, data.refresh, { 
         email: formData.email, 
-        is_staff: data.is_staff,
+        is_staff: data.is_staff || isAdminLevel,
       });
       
       toast.success("환영합니다!");

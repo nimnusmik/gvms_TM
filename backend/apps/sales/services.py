@@ -1,21 +1,122 @@
+import math
+from datetime import timedelta
+from datetime import datetime, time # 추가
+import pytz
+from django.conf import settings
 from django.db import transaction
+from django.db.models import Exists, F, OuterRef, Q, Subquery
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from .models import SalesAssignment
+from apps.calls.models import CallLog
+from apps.customers.models import Customer
+
+RECYCLE_COOLDOWN_DAYS = getattr(settings, "RECYCLE_COOLDOWN_DAYS", 14)
+RECYCLE_MAX_COUNT = getattr(settings, "RECYCLE_MAX_COUNT", 2)
+RECYCLE_TRYING_EXPIRE_DAYS = getattr(settings, "RECYCLE_TRYING_EXPIRE_DAYS", 7)
+RECYCLE_MIX_RATIO = getattr(settings, "RECYCLE_MIX_RATIO", 0.3)
+
+def _get_latest_assignment_queryset():
+    latest_id = Subquery(
+        SalesAssignment.objects.filter(customer_id=OuterRef("customer_id"))
+        .order_by("-assigned_at", "-id")
+        .values("id")[:1]
+    )
+    return SalesAssignment.objects.annotate(latest_id=latest_id).filter(id=F("latest_id"))
+
+def get_recycle_candidates(limit=None, exclude_agent_id=None):
+    now = timezone.now()
+    cooldown_cutoff = now - timedelta(days=RECYCLE_COOLDOWN_DAYS)
+    trying_cutoff = now - timedelta(days=RECYCLE_TRYING_EXPIRE_DAYS)
+
+    last_call_subq = CallLog.objects.filter(
+        assignment_id=OuterRef("id")
+    ).order_by("-call_start").values("call_start")[:1]
+
+    active_assignment_exists = SalesAssignment.objects.filter(
+        customer_id=OuterRef("customer_id"),
+        stage=SalesAssignment.Stage.FIRST,
+        status__in=[
+            SalesAssignment.Status.NEW,
+            SalesAssignment.Status.ASSIGNED,
+            SalesAssignment.Status.TRYING,
+        ],
+    )
+
+    qs = _get_latest_assignment_queryset().annotate(
+        last_call_at=Subquery(last_call_subq),
+        has_active_assignment=Exists(active_assignment_exists),
+    ).annotate(
+        last_contact_at=Coalesce(F("last_call_at"), F("assigned_at")),
+    ).filter(
+        has_active_assignment=False,
+        customer__recycle_count__lt=RECYCLE_MAX_COUNT,
+    )
+
+    status_filter = Q(status__in=[SalesAssignment.Status.REJECT, SalesAssignment.Status.HOLD])
+    trying_filter = Q(
+        status=SalesAssignment.Status.TRYING,
+        last_contact_at__lte=trying_cutoff,
+    )
+
+    qs = qs.filter(status_filter | trying_filter)
+    qs = qs.filter(last_contact_at__lte=cooldown_cutoff)
+
+    if exclude_agent_id is not None:
+        qs = qs.exclude(agent_id=exclude_agent_id)
+
+    qs = qs.order_by("last_contact_at")
+    if limit:
+        return qs[:limit]
+    return qs
+
+def create_recycled_assignments(agent, count):
+    if count <= 0:
+        return 0
+
+    with transaction.atomic():
+        candidates = list(
+            get_recycle_candidates(count, exclude_agent_id=agent.pk).select_for_update(skip_locked=True)
+        )
+        if not candidates:
+            return 0
+
+        customer_ids = [c.customer_id for c in candidates]
+        Customer.objects.filter(id__in=customer_ids).update(
+            recycle_count=F("recycle_count") + 1
+        )
+
+        assignments = [
+            SalesAssignment(
+                customer=candidate.customer,
+                parent_assignment=candidate,
+                stage=SalesAssignment.Stage.FIRST,
+                status=SalesAssignment.Status.ASSIGNED,
+                agent=agent,
+            )
+            for candidate in candidates
+        ]
+        SalesAssignment.objects.bulk_create(assignments)
+
+        return len(assignments)
 
 def assign_leads_to_agent(agent, count=None): # count가 None이면 자동 계산
     """
     상담원에게 '1차 TM' 신규 DB를 배정하는 로직 (Daily Cap 준수)
     """
-    today = timezone.localtime().date()
-    
-    # 1. 오늘 이미 배정받은 개수 확인 (할당량 체크의 핵심!)
-    today_assigned_count = SalesAssignment.objects.filter(
+    # 1. 진행 중(미완료) 배정 수 확인 (전일 미처리 포함)
+    active_assigned_count = SalesAssignment.objects.filter(
         agent=agent,
-        assigned_at__date=today
+        stage=SalesAssignment.Stage.FIRST,
+        status__in=[
+            SalesAssignment.Status.ASSIGNED,
+            SalesAssignment.Status.TRYING,
+            SalesAssignment.Status.HOLD,
+        ],
     ).count()
 
     # 2. 남은 할당량 계산
-    remaining_cap = agent.daily_cap - today_assigned_count
+    remaining_cap = agent.daily_cap - active_assigned_count
     
     # 할당량이 꽉 찼거나 초과했다면 배정 중단
     if remaining_cap <= 0:
@@ -31,24 +132,56 @@ def assign_leads_to_agent(agent, count=None): # count가 None이면 자동 계�
     if count <= 0:
         return 0
 
-    # 4. 배정 트랜잭션 실행
-    with transaction.atomic():
-        # 주인 없는(NEW) + 1차(1ST) DB를 가져옴 (Lock)
-        target_assignments = SalesAssignment.objects.select_for_update().filter(
-            stage='1ST',
-            status='NEW',
-            agent__isnull=True
-        ).order_by('assigned_at')[:count] # 오래된 순으로 배정
+    target_new = int(math.ceil(count * (1 - RECYCLE_MIX_RATIO)))
+    target_recycle = count - target_new
 
-        ids_to_update = [a.id for a in target_assignments]
-        updated_count = 0
-        
+    assigned_new = 0
+    assigned_recycle = 0
+
+    # 4. 신규 배정 트랜잭션 실행
+    with transaction.atomic():
+        target_assignments = SalesAssignment.objects.select_for_update(skip_locked=True).filter(
+            stage=SalesAssignment.Stage.FIRST, # 변경
+            status=SalesAssignment.Status.NEW, # 변경
+            agent__isnull=True
+        ).order_by('assigned_at')[:target_new]
+
+        ids_to_update = list(target_assignments.values_list('id', flat=True))
+
         if ids_to_update:
-            updated_count = SalesAssignment.objects.filter(id__in=ids_to_update).update(
+            assigned_new = SalesAssignment.objects.filter(id__in=ids_to_update).update(
                 agent=agent,
-                status='ASSIGNED',
-                # updated_at은 auto_now라 update()시 갱신 안될 수 있으므로 명시해주면 좋음
+                status=SalesAssignment.Status.ASSIGNED, # 변경
                 assigned_at=timezone.now() 
             )
 
-    return updated_count
+    remaining = count - assigned_new
+    if remaining <= 0:
+        return assigned_new
+
+    desired_recycle = max(target_recycle, remaining)
+    assigned_recycle = create_recycled_assignments(agent, desired_recycle)
+
+    # 재활용 후보가 부족하면 신규로 추가 보충
+    still_needed = count - (assigned_new + assigned_recycle)
+    if still_needed <= 0:
+        return assigned_new + assigned_recycle
+
+    with transaction.atomic():
+        extra_new = SalesAssignment.objects.select_for_update(skip_locked=True).filter(
+            stage=SalesAssignment.Stage.FIRST,
+            status=SalesAssignment.Status.NEW,
+            agent__isnull=True
+        ).order_by('assigned_at')[:still_needed]
+
+        extra_ids = list(extra_new.values_list('id', flat=True))
+        if extra_ids:
+            assigned_extra = SalesAssignment.objects.filter(id__in=extra_ids).update(
+                agent=agent,
+                status=SalesAssignment.Status.ASSIGNED,
+                assigned_at=timezone.now()
+            )
+        else:
+            assigned_extra = 0
+
+    return assigned_new + assigned_recycle + assigned_extra

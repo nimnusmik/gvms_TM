@@ -13,6 +13,7 @@ from django.conf import settings
 
 from .models import Customer
 from .serializers import CustomerSerializer
+from apps.agents.permissions import IsAdminOrManager
 
 # ✅ Celery Task Import
 from .tasks import task_process_large_excel
@@ -22,6 +23,7 @@ from .tasks import task_process_large_excel
 # ----------------------------------------------------------------
 class CustomerUploadView(APIView):
     parser_classes = [parsers.MultiPartParser, parsers.FormParser]
+    permission_classes = [IsAdminOrManager]
 
     def post(self, request):
         file = request.FILES.get('file')
@@ -58,9 +60,10 @@ class CustomerUploadView(APIView):
 # ----------------------------------------------------------------
 # 2. 고객 관리 ViewSet (기존 기능 100% 유지)
 # ----------------------------------------------------------------
-class CustomerViewSet(viewsets.ModelViewSet):
+class CustomerViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Customer.objects.all().order_by('-created_at')
     serializer_class = CustomerSerializer
+    permission_classes = [IsAdminOrManager]
     
     # 필터 설정
     filter_backends = [

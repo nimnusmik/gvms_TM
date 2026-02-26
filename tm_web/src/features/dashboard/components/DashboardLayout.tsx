@@ -1,7 +1,7 @@
 // src/features/dashboard/components/DashboardLayout.tsx
 import { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, LogOut, Database, Megaphone, BarChart2, Bot, ChevronLeft, ChevronRight } from 'lucide-react'; 
+import { LayoutDashboard, Users, LogOut, Database, Megaphone, BarChart2, Bot, ChevronLeft, ChevronRight, Wallet } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { storage } from '@/lib/storage'; 
 import { cn } from "@/lib/utils"; 
@@ -36,11 +36,26 @@ export default function DashboardLayout() {
       name: '고객 DB 관리', 
       path: '/dashboard/customers',
       icon: Database, 
+      children: [
+        {
+          name: '1차 성공 DB',
+          path: '/dashboard/customers-success',
+        },
+        {
+          name: '재활용 가능 DB',
+          path: '/dashboard/customers-recycle',
+        }
+      ]
     },
     { 
       name: '성과 분석', 
       path: '/dashboard/performance', 
       icon: BarChart2, 
+    },
+    {
+      name: '정산 관리',
+      path: '/dashboard/settlement',
+      icon: Wallet,
     },
     { 
       name: 'AI 서비스', 

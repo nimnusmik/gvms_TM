@@ -1,42 +1,39 @@
 from rest_framework import serializers
 from .models import CallLog
 
+
 class CallLogSerializer(serializers.ModelSerializer):
-    agent_name = serializers.ReadOnlyField(source='agent.user.name')
-    customer_name = serializers.ReadOnlyField(source='customer.name')
+    agent_name = serializers.ReadOnlyField(source="agent.user.name")
+    customer_id = serializers.ReadOnlyField(source="assignment.customer.id")
+    customer_name = serializers.ReadOnlyField(source="assignment.customer.name")
+    customer_phone = serializers.ReadOnlyField(source="assignment.customer.phone")
+
+    result = serializers.ChoiceField(source="result_type", choices=CallLog.Result.choices)
+    duration = serializers.IntegerField(source="call_duration", required=False)
 
     class Meta:
         model = CallLog
         fields = [
-            'id',
-            'assignment',      # 어느 배정 건인지
-            'agent', 'agent_name',
-            'customer', 'customer_name',
-            'call_type',
-            'result',          # 통화 결과
-            'recipient_name',  # 수신자명  
-            'recipient_email', # 이메일
-            'recipient_mobile',# 휴대폰
-            'sentiment',       # 감도
-            'item_interested', # 관심 아이템
-            'memo',
-            'duration',
-            'recording_file',
-            'recording_status',
-            'recording_mime',
-            'recording_size',
-            'recording_uploaded_at',
-            'status_before',   # 자동 기록됨
-            'status_after',    # 자동 기록됨
-            'created_at',
+            "id",
+            "assignment",
+            "agent",
+            "agent_name",
+            "customer_id",
+            "customer_name",
+            "customer_phone",
+            "call_start",
+            "duration",
+            "result",
+            "recording_file",
+            "recording_status",
+            "recording_mime",
+            "recording_size",
+            "recording_uploaded_at",
         ]
         read_only_fields = [
-            'agent',
-            'recording_status',
-            'recording_mime',
-            'recording_size',
-            'recording_uploaded_at',
-            'status_before',
-            'status_after',
-            'created_at',
+            "agent",
+            "recording_status",
+            "recording_mime",
+            "recording_size",
+            "recording_uploaded_at",
         ]

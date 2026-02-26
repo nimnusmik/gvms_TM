@@ -9,12 +9,15 @@ interface CustomerTableProps {
   isLoading: boolean;
   page: number;
   totalPages: number;
-  selectedIds: number[];
-  onSelectAll: (checked: boolean) => void;
-  onSelectRow: (id: number) => void;
-  onUpdateSecondaryStatus: (secondaryId: number, status: string) => void;
+  selectedIds?: number[];
+  onSelectAll?: (checked: boolean) => void;
+  onSelectRow?: (id: number) => void;
+  onUpdateSecondaryStatus?: (secondaryId: number, status: string) => void;
+  onOpenCallLogs?: (assignment: SalesAssignment) => void;
   onPrevPage: () => void;
   onNextPage: () => void;
+  readOnly?: boolean;
+  showSelection?: boolean;
 }
 
 export function CustomerTable({
@@ -22,27 +25,34 @@ export function CustomerTable({
   isLoading,
   page,
   totalPages,
-  selectedIds,
+  selectedIds = [],
   onSelectAll,
   onSelectRow,
   onUpdateSecondaryStatus,
+  onOpenCallLogs,
   onPrevPage,
   onNextPage,
+  readOnly = false,
+  showSelection,
 }: CustomerTableProps) {
+  const isSelectionVisible = showSelection ?? !readOnly;
+  const columnCount = isSelectionVisible ? 13 : 12;
   return (
     <div className="bg-white rounded-lg shadow border overflow-hidden flex flex-col h-full">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 w-4">
-                <input
-                  type="checkbox"
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-                  checked={customers.length > 0 && selectedIds.length === customers.length}
-                  onChange={(e) => onSelectAll(e.target.checked)}
-                />
-              </th>
+              {isSelectionVisible && (
+                <th className="px-6 py-3 w-4">
+                  <input
+                    type="checkbox"
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                    checked={customers.length > 0 && selectedIds.length === customers.length}
+                    onChange={(e) => onSelectAll?.(e.target.checked)}
+                  />
+                </th>
+              )}
               {/* 1. 이름 */}
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
                 고객명
@@ -63,23 +73,26 @@ export function CustomerTable({
                 분야3
               </th>
               
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 1차 담당자
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 상태 (1차)
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 2차 담당자 
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 상태 (2차)
               </th>
              
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap min-w-[90px]">
                 통화
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap min-w-[120px]">
+                통화기록
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap min-w-[100px]">
                 등록일
               </th>
             </tr>
@@ -87,13 +100,13 @@ export function CustomerTable({
           <tbody className="bg-white divide-y divide-gray-200">
             {isLoading ? (
               <tr>
-                <td colSpan={12} className="text-center py-20 text-gray-400">
+                <td colSpan={columnCount} className="text-center py-20 text-gray-400">
                   데이터를 불러오는 중입니다...
                 </td>
               </tr>
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan={12} className="text-center py-20 text-gray-400">
+                <td colSpan={columnCount} className="text-center py-20 text-gray-400">
                   데이터가 없습니다.
                 </td>
               </tr>
@@ -101,14 +114,16 @@ export function CustomerTable({
               customers.map((assignment) => (
                 <tr key={assignment.id} className="hover:bg-gray-50 transition-colors">
                   {/* 체크박스 */}
-                  <td className="px-6 py-4">
-                    <input
-                      type="checkbox"
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-                      checked={selectedIds.includes(assignment.id)}
-                      onChange={() => onSelectRow(assignment.id)}
-                    />
-                  </td>
+                  {isSelectionVisible && (
+                    <td className="px-6 py-4">
+                      <input
+                        type="checkbox"
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                        checked={selectedIds.includes(assignment.id)}
+                        onChange={() => onSelectRow?.(assignment.id)}
+                      />
+                    </td>
+                  )}
 
                   {/* 1. 이름 */}
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -194,12 +209,21 @@ export function CustomerTable({
 
                   {/* 7. 상태(2차)*/}
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {assignment.secondary_assignment ? (
+                    {readOnly ? (
+                      <Badge
+                        variant="outline"
+                        className="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full border-0 bg-gray-100 text-gray-800"
+                      >
+                        {assignment.secondary_assignment?.status_display ||
+                          assignment.secondary_assignment?.status ||
+                          "-"}
+                      </Badge>
+                    ) : assignment.secondary_assignment ? (
                       <select
                         className="h-8 rounded-md border border-gray-200 bg-white px-2 text-xs"
                         value={assignment.secondary_assignment.status || ""}
                         onChange={(e) =>
-                          onUpdateSecondaryStatus(assignment.secondary_assignment!.id, e.target.value)
+                          onUpdateSecondaryStatus?.(assignment.secondary_assignment!.id, e.target.value)
                         }
                       >
                         <option value="ASSIGNED">배정됨</option>
@@ -219,11 +243,23 @@ export function CustomerTable({
 
                   {/* 8. 통화 횟수 */}
                   <td className="px-6 py-4 whitespace-nowrap text-center">
-                     <span className={`text-xs font-mono font-bold px-2 py-1 rounded-md ${
-                       (assignment.call_count || 0) > 0 ? 'bg-orange-50 text-orange-600' : 'text-gray-300'
-                     }`}>
-                       {assignment.call_count || 0}회
-                     </span>
+                    <span
+                      className={`text-xs font-mono font-bold px-2 py-1 rounded-md ${
+                        (assignment.call_count || 0) > 0 ? "bg-orange-50 text-orange-600" : "text-gray-300"
+                      }`}
+                    >
+                      {assignment.call_count || 0}회
+                    </span>
+                  </td>
+
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    {onOpenCallLogs ? (
+                      <Button size="sm" variant="outline" onClick={() => onOpenCallLogs(assignment)}>
+                        통화기록
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-gray-400">-</span>
+                    )}
                   </td>
 
                   {/* 9. 등록일 */}

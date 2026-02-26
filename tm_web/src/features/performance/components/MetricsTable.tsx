@@ -7,12 +7,16 @@ type MetricsRow = {
 
 type MetricsTableProps = {
   data: MetricsRow[];
+  headerRight?: React.ReactNode;
 };
 
-export const MetricsTable = ({ data }: MetricsTableProps) => {
+export const MetricsTable = ({ data, headerRight }: MetricsTableProps) => {
   return (
     <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm h-full min-h-[22rem] flex flex-col">
-      <h3 className="font-bold text-gray-800 mb-4">사원별 주요 지표</h3>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="font-bold text-gray-800">사원별 주요 지표</h3>
+        {headerRight ? <div className="flex items-center gap-2">{headerRight}</div> : null}
+      </div>
       <div className="flex-1 overflow-auto">
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-200">
