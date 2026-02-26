@@ -1,5 +1,6 @@
 from celery import shared_task
 from datetime import datetime, time
+import holidays
 import pytz
 from django.conf import settings
 from django.utils import timezone
@@ -16,15 +17,25 @@ def task_run_auto_assign(triggered_by='SYSTEM'):
     agent_count = 0
 
     try:
-        # 1. 자동배정 대상/제외 사유 로깅
+        # 1. 공휴일 스킵 (KST 기준)
         kst = pytz.timezone("Asia/Seoul")
         today_kst = timezone.localtime(timezone.now(), kst).date()
-        start_of_day = kst.localize(datetime.combine(today_kst, time.min))
-        end_of_day = kst.localize(datetime.combine(today_kst, time.max))
-        if settings.USE_TZ:
-            start_of_day = start_of_day.astimezone(pytz.UTC)
-            end_of_day = end_of_day.astimezone(pytz.UTC)
+        kr_holidays = holidays.KR()
+        if today_kst in kr_holidays:
+            AssignmentLog.objects.create(
+                triggered_by=triggered_by,
+                status='SUCCESS',
+                total_assigned=0,
+                agent_count=0,
+                result_detail={
+                    "skipped": "HOLIDAY",
+                    "holiday_name": kr_holidays.get(today_kst),
+                    "date": today_kst.isoformat(),
+                },
+            )
+            return f"공휴일 자동배정 스킵: {today_kst} ({kr_holidays.get(today_kst)})"
 
+        # 2. 자동배정 대상/제외 사유 로깅
         all_agents = Agent.objects.select_related("user").order_by("created_at")
         excluded = {
             "OFFLINE": [],
@@ -45,13 +56,19 @@ def task_run_auto_assign(triggered_by='SYSTEM'):
                 )
                 continue
 
-            today_assigned = SalesAssignment.objects.filter(
-                agent=agent, assigned_at__range=(start_of_day, end_of_day)
+            active_assigned = SalesAssignment.objects.filter(
+                agent=agent,
+                stage=SalesAssignment.Stage.FIRST,
+                status__in=[
+                    SalesAssignment.Status.ASSIGNED,
+                    SalesAssignment.Status.TRYING,
+                    SalesAssignment.Status.HOLD,
+                ],
             ).count()
-            remaining_cap = agent.daily_cap - today_assigned
+            remaining_cap = agent.daily_cap - active_assigned
             if remaining_cap <= 0:
                 excluded["CAP_FULL"].append(
-                    (agent.user.name, today_assigned, agent.daily_cap)
+                    (agent.user.name, active_assigned, agent.daily_cap)
                 )
                 continue
             eligible.append(

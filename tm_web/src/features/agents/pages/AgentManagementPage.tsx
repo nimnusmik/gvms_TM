@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, UserPlus, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import { agentApi } from "../api/agentApi";
 import type { Agent } from "../types";
 import { PageHeaderCard } from "@/components/common/PageHeaderCard";
@@ -18,6 +19,7 @@ export default function AgentManagementPage() {
   // 1. 데이터 상태
   const [agents, setAgents] = useState<Agent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [autoAssignSavingMap, setAutoAssignSavingMap] = useState<Record<string, boolean>>({});
   
   // 2. UI 상태 (모달)
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -50,6 +52,34 @@ export default function AgentManagementPage() {
     agent.email?.includes(searchTerm) ||
     agent.code?.includes(searchTerm)
   );
+
+  const handleToggleAutoAssign = async (agent: Agent, nextValue: boolean) => {
+    setAutoAssignSavingMap((prev) => ({ ...prev, [agent.agent_id]: true }));
+    setAgents((prev) =>
+      prev.map((item) =>
+        item.agent_id === agent.agent_id ? { ...item, is_auto_assign: nextValue } : item
+      )
+    );
+
+    try {
+      await agentApi.updateAgent(agent.agent_id, { is_auto_assign: nextValue });
+      toast.success(`자동배정 ${nextValue ? "ON" : "OFF"}`, {
+        description: `${agent.name} 상담원 설정이 저장되었습니다.`,
+      });
+    } catch (error) {
+      console.error(error);
+      setAgents((prev) =>
+        prev.map((item) =>
+          item.agent_id === agent.agent_id ? { ...item, is_auto_assign: !nextValue } : item
+        )
+      );
+      toast.error("자동배정 설정 실패", {
+        description: "권한 또는 서버 상태를 확인해주세요.",
+      });
+    } finally {
+      setAutoAssignSavingMap((prev) => ({ ...prev, [agent.agent_id]: false }));
+    }
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -97,6 +127,8 @@ export default function AgentManagementPage() {
         agents={filteredAgents} 
         isLoading={isLoading} 
         onEdit={(agent) => setEditingAgent(agent)} 
+        onToggleAutoAssign={handleToggleAutoAssign}
+        autoAssignSavingMap={autoAssignSavingMap}
       />
 
       {/* --- 모달들 (분리됨!) --- */}
