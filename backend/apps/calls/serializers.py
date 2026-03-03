@@ -24,6 +24,8 @@ class CallLogSerializer(serializers.ModelSerializer):
             "call_start",
             "duration",
             "result",
+            "status_before",
+            "status_after",
             "recording_file",
             "recording_status",
             "recording_mime",
@@ -32,6 +34,8 @@ class CallLogSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "agent",
+            "status_before",
+            "status_after",
             "recording_status",
             "recording_mime",
             "recording_size",
