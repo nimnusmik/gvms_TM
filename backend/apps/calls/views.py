@@ -92,11 +92,15 @@ class CallLogViewSet(viewsets.ModelViewSet):
                 # 거절 -> 영업 거절 (재활용 대상)
                 status_after = SalesAssignment.Status.REJECT
             
-            elif call_result == CallLog.Result.WRONG_NUMBER:
+            elif call_result == CallLog.Result.INVALID:
                 # 결번 -> 무효 처리
                 status_after = SalesAssignment.Status.INVALID
             
-            elif call_result in [CallLog.Result.ABSENCE, CallLog.Result.BUSY, CallLog.Result.LATER]:
+            elif call_result == CallLog.Result.CALLBACK:
+                # 콜백 예약
+                status_after = SalesAssignment.Status.CALLBACK
+
+            elif call_result == CallLog.Result.ABSENCE:
                 # 부재/통화중 -> 계속 시도 중(TRYING)으로 변경 (단, 이미 성공한 건은 건드리지 않음)
                 if status_before not in ['SUCCESS', 'REJECT']:
                     status_after = SalesAssignment.Status.TRYING

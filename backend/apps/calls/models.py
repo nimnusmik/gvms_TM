@@ -9,6 +9,7 @@ class CallLog(models.Model):
         REJECT = 'REJECT', '거절'
         ABSENCE = 'ABSENCE', '부재'
         INVALID = 'INVALID', '결번'
+        CALLBACK = 'CALLBACK', '콜백'
 
     assignment = models.ForeignKey(
         SalesAssignment,
@@ -26,6 +27,7 @@ class CallLog(models.Model):
     call_start = models.DateTimeField(verbose_name="통화 시작")
     call_duration = models.IntegerField(default=0, verbose_name="통화 시간(초)")
     result_type = models.CharField(max_length=50, choices=Result.choices, verbose_name="통화 결과")
+    callback_scheduled_at = models.DateTimeField(null=True, blank=True, verbose_name="콜백 예약 일시")
     is_billable = models.BooleanField(default=True)
     recording_file = models.FileField(upload_to='recordings/%Y/%m/', null=True, blank=True)
     recording_status = models.CharField(

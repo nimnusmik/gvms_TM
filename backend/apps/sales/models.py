@@ -21,6 +21,7 @@ class SalesAssignment(models.Model):
         SUCCESS = 'SUCCESS', '성공(동의/계약)' # 다음 단계 이동 / 정산 대상
         BUY = 'BUY', '구매'
         HOLD = 'HOLD', '보류'
+        CALLBACK = 'CALLBACK', '콜백 예약'
             
     class Sentiment(models.TextChoices):
         HIGH = 'HIGH', '상'
