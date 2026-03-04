@@ -87,7 +87,7 @@ class SettlementViewSet(viewsets.GenericViewSet):
         if not agents.exists():
             return {}
         price = _get_prices()
-        start_dt, end_dt, _ = _get_kst_range(range_start, range_end)
+        start_dt, end_dt, kst = _get_kst_range(range_start, range_end)
         qs = CallLog.objects.filter(
             call_start__range=(start_dt, end_dt),
             result_type__in=RESULT_TYPES,
@@ -164,7 +164,7 @@ class SettlementViewSet(viewsets.GenericViewSet):
         self._sync_settlements(agents, range_start, range_end)
 
         price = _get_prices()
-        start_dt, end_dt, _ = _get_kst_range(range_start, range_end)
+        start_dt, end_dt, kst = _get_kst_range(range_start, range_end)
         qs = CallLog.objects.filter(
             call_start__range=(start_dt, end_dt),
             result_type__in=RESULT_TYPES,
@@ -198,7 +198,7 @@ class SettlementViewSet(viewsets.GenericViewSet):
 
         chart = []
         if view == 'day':
-            rows = qs.annotate(day=TruncDate('call_start')).values('day').annotate(
+            rows = qs.annotate(day=TruncDate('call_start', tzinfo=kst)).values('day').annotate(
                 success=Count('id', filter=Q(result_type='SUCCESS')),
                 reject=Count('id', filter=Q(result_type='REJECT')),
                 invalid=Count('id', filter=Q(result_type='INVALID')),
@@ -223,7 +223,7 @@ class SettlementViewSet(viewsets.GenericViewSet):
                 })
                 cursor += timedelta(days=1)
         else:
-            rows = qs.annotate(week=TruncWeek('call_start')).values('week').annotate(
+            rows = qs.annotate(week=TruncWeek('call_start', tzinfo=kst)).values('week').annotate(
                 success=Count('id', filter=Q(result_type='SUCCESS')),
                 reject=Count('id', filter=Q(result_type='REJECT')),
                 invalid=Count('id', filter=Q(result_type='INVALID')),

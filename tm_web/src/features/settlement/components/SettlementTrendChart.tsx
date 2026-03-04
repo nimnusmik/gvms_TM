@@ -58,6 +58,7 @@ export function SettlementTrendChart({ data, viewLabel }: SettlementTrendChartPr
             <Bar yAxisId="count" dataKey="success_count" name="SUCCESS" stackId="a" fill="#10B981" />
             <Bar yAxisId="count" dataKey="reject_count" name="REJECT" stackId="a" fill="#F59E0B" />
             <Bar yAxisId="count" dataKey="invalid_count" name="INVALID" stackId="a" fill="#94A3B8" />
+            <Bar yAxisId="count" dataKey="absence_count" name="ABSENCE" stackId="a" fill="#F97316" />
             <Line
               yAxisId="amount"
               dataKey="amount"

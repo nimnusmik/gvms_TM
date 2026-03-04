@@ -19,24 +19,41 @@ const statusOptions = [
   { value: 'PAID', label: '지급 완료' },
 ];
 
-const formatDateInput = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+const KST_TIME_ZONE = 'Asia/Seoul';
+
+const getKstDateParts = (date = new Date()) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: KST_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const map = Object.fromEntries(
+    parts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]),
+  );
+  return {
+    year: Number(map.year),
+    month: Number(map.month),
+    day: Number(map.day),
+  };
+};
+
+const formatKstDateInput = (offsetDays = 0) => {
+  const { year, month, day } = getKstDateParts();
+  const utcMs = Date.UTC(year, month - 1, day + offsetDays);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: KST_TIME_ZONE }).format(new Date(utcMs));
 };
 
 export default function SettlementPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
-  const today = new Date();
-  const [startDate, setStartDate] = useState(formatDateInput(new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000)));
-  const [endDate, setEndDate] = useState(formatDateInput(today));
+  const [startDate, setStartDate] = useState(formatKstDateInput(-6));
+  const [endDate, setEndDate] = useState(formatKstDateInput(0));
   const view: 'day' | 'week' = 'day';
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
 
   const [appliedFilters, setAppliedFilters] = useState<SettlementFilters>({
-    start_date: formatDateInput(new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000)),
-    end_date: formatDateInput(today),
+    start_date: formatKstDateInput(-6),
+    end_date: formatKstDateInput(0),
     view,
     agent_ids: [],
   });
@@ -106,8 +123,8 @@ export default function SettlementPage() {
 
   const handleApply = () => {
     if (startDate && endDate) {
-      const start = new Date(`${startDate}T00:00:00`);
-      const end = new Date(`${endDate}T00:00:00`);
+      const start = new Date(`${startDate}T00:00:00+09:00`);
+      const end = new Date(`${endDate}T00:00:00+09:00`);
       if (start > end) {
         toast.error('시작 기간은 종료 기간보다 앞서야 합니다.');
         return;

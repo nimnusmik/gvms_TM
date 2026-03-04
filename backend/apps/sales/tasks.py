@@ -43,14 +43,21 @@ def task_run_auto_assign(triggered_by='SYSTEM'):
             "CAP_FULL": [],
         }
         eligible = []
+        remaining_caps = []
 
         for agent in all_agents:
             if agent.status != AgentStatus.ONLINE:
+                remaining_caps.append(
+                    (agent.user.name, agent.status, agent.is_auto_assign, agent.daily_cap, None)
+                )
                 excluded["OFFLINE"].append(
                     (agent.user.name, agent.status, agent.is_auto_assign)
                 )
                 continue
             if not agent.is_auto_assign:
+                remaining_caps.append(
+                    (agent.user.name, agent.status, agent.is_auto_assign, agent.daily_cap, None)
+                )
                 excluded["AUTO_ASSIGN_OFF"].append(
                     (agent.user.name, agent.status, agent.is_auto_assign)
                 )
@@ -66,6 +73,9 @@ def task_run_auto_assign(triggered_by='SYSTEM'):
                 ],
             ).count()
             remaining_cap = agent.daily_cap - active_assigned
+            remaining_caps.append(
+                (agent.user.name, agent.status, agent.is_auto_assign, agent.daily_cap, remaining_cap)
+            )
             if remaining_cap <= 0:
                 excluded["CAP_FULL"].append(
                     (agent.user.name, active_assigned, agent.daily_cap)
@@ -84,6 +94,8 @@ def task_run_auto_assign(triggered_by='SYSTEM'):
             print(f"⛔ 제외(AUTO_ASSIGN_OFF): {excluded['AUTO_ASSIGN_OFF']}")
         if excluded["CAP_FULL"]:
             print(f"⛔ 제외(CAP_FULL): {excluded['CAP_FULL']}")
+        if remaining_caps:
+            print(f"📊 remaining_cap: {remaining_caps}")
 
         for agent in agents:
             # 2. 서비스 로직 호출 (상담원별 일일 할당량 기준)
