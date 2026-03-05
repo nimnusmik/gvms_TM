@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "tm_mob",
+    "name": "글로벌비전 TM파트너", 
     "slug": "tm_mob",
-    "version": "1.0.0",
+    "version": "1.0.1", 
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -15,8 +15,8 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.globalvision.tmsystem",
-      "versionCode": 1,
+      "package": "com.globalvision.tmpartner", 
+      "versionCode": 1, 
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
