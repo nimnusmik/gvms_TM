@@ -90,18 +90,32 @@ class AgentViewSet(viewsets.ModelViewSet):
             agent = request.user.agent_profile
         except Agent.DoesNotExist:
             return Response(
-                {"detail": "상담원 프로필이 없습니다. 관리자에게 문의하세요."}, 
+                {"detail": "상담원 프로필이 없습니다. 관리자에게 문의하세요."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
         today = timezone.localtime().date()
         kst = timezone.get_current_timezone()
-        start_of_day = timezone.make_aware(datetime.combine(today, datetime.min.time()), kst)
-        end_of_day = timezone.make_aware(datetime.combine(today, datetime.max.time()), kst)
+
+        start_date_param = request.query_params.get('start_date')
+        end_date_param = request.query_params.get('end_date')
+
+        try:
+            start_date = datetime.strptime(start_date_param, '%Y-%m-%d').date() if start_date_param else today
+            end_date = datetime.strptime(end_date_param, '%Y-%m-%d').date() if end_date_param else today
+        except ValueError:
+            start_date = today
+            end_date = today
+
+        if start_date > end_date:
+            start_date, end_date = end_date, start_date
+
+        start_dt = timezone.make_aware(datetime.combine(start_date, datetime.min.time()), kst)
+        end_dt = timezone.make_aware(datetime.combine(end_date, datetime.max.time()), kst)
 
         call_stat = CallLog.objects.filter(
             agent=agent,
-            call_start__range=(start_of_day, end_of_day)
+            call_start__range=(start_dt, end_dt)
         ).aggregate(
             today_total=Count('id'),
             today_success=Count('id', filter=Q(result_type='SUCCESS')),

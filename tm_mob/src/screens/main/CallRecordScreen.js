@@ -140,6 +140,8 @@ export default function CallRecordScreen({ route, navigation }) {
         multiline
         value={memo}
         onChangeText={setMemo}
+        autoCorrect={false}
+        autoCapitalize="none"
       />
 
       <TouchableOpacity

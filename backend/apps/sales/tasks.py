@@ -45,6 +45,10 @@ def task_run_auto_assign(triggered_by='SYSTEM'):
         eligible = []
         remaining_caps = []
 
+        from datetime import datetime, time as dt_time
+        today_start = kst.localize(datetime.combine(today_kst, dt_time.min))
+        today_end = kst.localize(datetime.combine(today_kst, dt_time.max))
+
         for agent in all_agents:
             if agent.status != AgentStatus.ONLINE:
                 remaining_caps.append(
@@ -71,6 +75,7 @@ def task_run_auto_assign(triggered_by='SYSTEM'):
                     SalesAssignment.Status.TRYING,
                     SalesAssignment.Status.HOLD,
                 ],
+                assigned_at__range=(today_start, today_end),
             ).count()
             remaining_cap = agent.daily_cap - active_assigned
             remaining_caps.append(
@@ -104,7 +109,7 @@ def task_run_auto_assign(triggered_by='SYSTEM'):
                 total_assigned += count
                 log_data['details'][agent.user.name] = count
         
-        status = 'SUCCESS' if total_assigned > 0 else 'FAILURE'
+        status = 'SUCCESS'
 
     except Exception as e:
         status = 'FAILURE'

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Alert, Pressable } from 'react-native';
 import client from '../../api/client';
 import { CallContext } from '../../store/CallContext';
 
@@ -59,7 +59,9 @@ const goalStyles = StyleSheet.create({
   stats: { fontSize: 13, color: '#555' },
 });
 
-export default function AssignmentsScreen() {
+export default function AssignmentsScreen({ route, navigation }) {
+  const filterStatus = route?.params?.filterStatus ?? null;
+
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -69,14 +71,12 @@ export default function AssignmentsScreen() {
   const hasMore = useRef(false);
   const isFetching = useRef(false);
 
-  // 아까 만든 마법의 통화 감지기 Context 가져오기
   const { setPendingCall } = useContext(CallContext);
 
-  // 화면이 켜지자마자 백엔드에서 리스트를 가져옵니다.
   useEffect(() => {
     fetchAssignments();
     fetchGoalStats();
-  }, []);
+  }, [filterStatus]);
 
   const fetchGoalStats = async () => {
     try {
@@ -87,10 +87,16 @@ export default function AssignmentsScreen() {
     }
   };
 
+  const buildQuery = (page = 1) => {
+    let q = `/sales/?stage=1ST&assigned_today=1&page=${page}`;
+    if (filterStatus) q += `&status=${filterStatus}`;
+    return q;
+  };
+
   const fetchAssignments = async () => {
     try {
       currentPage.current = 1;
-      const response = await client.get('/sales/?stage=1ST&assigned_today=1');
+      const response = await client.get(buildQuery(1));
       const data = response.data.results ?? response.data;
       setAssignments(data);
       setTotalCount(response.data.count ?? data.length);
@@ -109,7 +115,7 @@ export default function AssignmentsScreen() {
     setLoadingMore(true);
     try {
       const nextPage = currentPage.current + 1;
-      const response = await client.get(`/sales/?stage=1ST&assigned_today=1&page=${nextPage}`);
+      const response = await client.get(buildQuery(nextPage));
       const data = response.data.results ?? response.data;
       setAssignments(prev => [...prev, ...data]);
       currentPage.current = nextPage;
@@ -212,11 +218,25 @@ export default function AssignmentsScreen() {
   const days = ['일', '월', '화', '수', '목', '금', '토'];
   const dayStr = days[today.getDay()];
 
+  const filterLabels = { SUCCESS: '성공', ABSENCE: '부재중', REJECT: '거절', INVALID: '결번' };
+  const filterColors = { SUCCESS: '#4CAF50', ABSENCE: '#FF9800', REJECT: '#F44336', INVALID: '#9E9E9E' };
+
   return (
     <View style={styles.container}>
       <View style={styles.topHeader}>
         <Text style={styles.dateText}>{dateStr} ({dayStr})</Text>
       </View>
+
+      {filterStatus && (
+        <View style={[styles.filterBadge, { backgroundColor: filterColors[filterStatus] + '22', borderColor: filterColors[filterStatus] }]}>
+          <Text style={[styles.filterBadgeText, { color: filterColors[filterStatus] }]}>
+            필터: {filterLabels[filterStatus] ?? filterStatus}
+          </Text>
+          <TouchableOpacity onPress={() => navigation.setParams({ filterStatus: null })} style={styles.filterClear}>
+            <Text style={[styles.filterClearText, { color: filterColors[filterStatus] }]}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {assignments.length === 0 ? (
         <View style={styles.centered}>
@@ -242,6 +262,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f4f4f4' },
   topHeader: { alignItems: 'center', backgroundColor: '#fff', paddingVertical: 10, borderBottomWidth: 1, borderColor: '#eee' },
   dateText: { fontSize: 17, fontWeight: '700', color: '#111' },
+  filterBadge: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 10, marginTop: 8, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, alignSelf: 'flex-start' },
+  filterBadgeText: { fontSize: 13, fontWeight: '600' },
+  filterClear: { marginLeft: 6, padding: 2 },
+  filterClearText: { fontSize: 13, fontWeight: '700' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: 18, fontWeight: 'bold', padding: 15, backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#ddd' },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 15, marginHorizontal: 10, marginTop: 10, borderRadius: 8, elevation: 2 },
