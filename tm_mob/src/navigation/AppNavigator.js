@@ -5,9 +5,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 
+import { setLogoutCallback } from '../api/client';
 import LoginScreen from '../screens/auth/LoginScreen';
 import AssignmentsScreen from '../screens/main/AssignmentsScreen';
 import MyStatsScreen from '../screens/main/MyStatsScreen';
+import PullRequestScreen from '../screens/main/PullRequestScreen';
 
 // 🌟 새로 추가할 통화 기록 화면 임포트
 import CallRecordScreen from '../screens/main/CallRecordScreen';
@@ -38,6 +40,8 @@ function MainTabs({ setIsAuthenticated }) {
           let iconName;
           if (route.name === '배정 리스트') {
             iconName = focused ? 'list' : 'list-outline';
+          } else if (route.name === 'DB 신청') {
+            iconName = focused ? 'download' : 'download-outline';
           } else if (route.name === '내 현황') {
             iconName = focused ? 'bar-chart' : 'bar-chart-outline';
           }
@@ -52,6 +56,7 @@ function MainTabs({ setIsAuthenticated }) {
       })}
     >
       <Tab.Screen name="배정 리스트" component={AssignmentsScreen} />
+      <Tab.Screen name="DB 신청" component={PullRequestScreen} />
       <Tab.Screen name="내 현황" component={MyStatsScreen} />
     </Tab.Navigator>
   );
@@ -59,6 +64,12 @@ function MainTabs({ setIsAuthenticated }) {
 
 export default function AppNavigator() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // 토큰 만료 시 자동 로그아웃
+  React.useEffect(() => {
+    setLogoutCallback(() => setIsAuthenticated(false));
+    return () => setLogoutCallback(null);
+  }, []);
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>

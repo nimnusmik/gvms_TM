@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Alert, Pressable } from 'react-native';
+import React, { useState, useEffect, useCallback, useContext, useRef } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Alert, Pressable, RefreshControl } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import client from '../../api/client';
 import { CallContext } from '../../store/CallContext';
 
@@ -64,6 +65,7 @@ export default function AssignmentsScreen({ route, navigation }) {
 
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [goalStats, setGoalStats] = useState({ total: 0, completed: 0 });
@@ -73,10 +75,12 @@ export default function AssignmentsScreen({ route, navigation }) {
 
   const { setPendingCall } = useContext(CallContext);
 
-  useEffect(() => {
-    fetchAssignments();
-    fetchGoalStats();
-  }, [filterStatus]);
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      Promise.all([fetchAssignments(), fetchGoalStats()]).finally(() => setLoading(false));
+    }, [filterStatus])
+  );
 
   const fetchGoalStats = async () => {
     try {
@@ -104,8 +108,6 @@ export default function AssignmentsScreen({ route, navigation }) {
     } catch (error) {
       console.error('배정 리스트 가져오기 실패:', error);
       Alert.alert('오류', '데이터를 불러오지 못했습니다.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -252,6 +254,16 @@ export default function AssignmentsScreen({ route, navigation }) {
           onEndReachedThreshold={0.3}
           ListHeaderComponent={<GoalCard total={goalStats.total} completed={goalStats.completed} />}
           ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 16 }} /> : null}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={async () => {
+                setRefreshing(true);
+                await Promise.all([fetchAssignments(), fetchGoalStats()]);
+                setRefreshing(false);
+              }}
+            />
+          }
         />
       )}
     </View>
