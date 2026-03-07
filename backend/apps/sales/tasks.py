@@ -1,5 +1,6 @@
 from celery import shared_task
 from datetime import datetime, time
+import logging
 import holidays
 import pytz
 from django.conf import settings
@@ -8,6 +9,8 @@ from apps.agents.models import Agent, AgentStatus
 from .models import AssignmentLog
 from .models import SalesAssignment
 from .services import assign_leads_to_agent
+
+logger = logging.getLogger('auto_assign')
 
 @shared_task
 def task_run_auto_assign(triggered_by='SYSTEM'):
@@ -21,7 +24,12 @@ def task_run_auto_assign(triggered_by='SYSTEM'):
         kst = pytz.timezone("Asia/Seoul")
         today_kst = timezone.localtime(timezone.now(), kst).date()
         kr_holidays = holidays.KR()
+
+        logger.info(f"=== 자동배정 시작 | {today_kst} | triggered_by={triggered_by} ===")
+
         if today_kst in kr_holidays:
+            holiday_name = kr_holidays.get(today_kst)
+            logger.info(f"공휴일 스킵: {holiday_name}")
             AssignmentLog.objects.create(
                 triggered_by=triggered_by,
                 status='SUCCESS',
@@ -29,11 +37,11 @@ def task_run_auto_assign(triggered_by='SYSTEM'):
                 agent_count=0,
                 result_detail={
                     "skipped": "HOLIDAY",
-                    "holiday_name": kr_holidays.get(today_kst),
+                    "holiday_name": holiday_name,
                     "date": today_kst.isoformat(),
                 },
             )
-            return f"공휴일 자동배정 스킵: {today_kst} ({kr_holidays.get(today_kst)})"
+            return f"공휴일 자동배정 스킵: {today_kst} ({holiday_name})"
 
         # 2. 자동배정 대상/제외 사유 로깅
         all_agents = Agent.objects.select_related("user").order_by("created_at")
@@ -92,6 +100,20 @@ def task_run_auto_assign(triggered_by='SYSTEM'):
 
         agents = Agent.objects.filter(status=AgentStatus.ONLINE, is_auto_assign=True)
         agent_count = len(eligible)
+
+        logger.info(f"배정 대상: {agent_count}명")
+        for name, status_, is_auto, cap, remaining in eligible:
+            logger.info(f"  [대상] {name} | cap={cap} | 남은={remaining}")
+        if excluded["OFFLINE"]:
+            for name, status_, is_auto in excluded["OFFLINE"]:
+                logger.warning(f"  [제외-OFFLINE] {name}")
+        if excluded["AUTO_ASSIGN_OFF"]:
+            for name, status_, is_auto in excluded["AUTO_ASSIGN_OFF"]:
+                logger.warning(f"  [제외-AUTO_ASSIGN_OFF] {name}")
+        if excluded["CAP_FULL"]:
+            for name, active, cap in excluded["CAP_FULL"]:
+                logger.warning(f"  [제외-CAP_FULL] {name} | 오늘배정={active} / cap={cap}")
+
         print(f"📌 자동배정 대상({agent_count}명, cap>0): {eligible}")
         if excluded["OFFLINE"]:
             print(f"⛔ 제외(OFFLINE): {excluded['OFFLINE']}")
@@ -103,19 +125,21 @@ def task_run_auto_assign(triggered_by='SYSTEM'):
             print(f"📊 remaining_cap: {remaining_caps}")
 
         for agent in agents:
-            # 2. 서비스 로직 호출 (상담원별 일일 할당량 기준)
             count = assign_leads_to_agent(agent, count=agent.daily_cap or 0)
             if count > 0:
                 total_assigned += count
                 log_data['details'][agent.user.name] = count
-        
+                logger.info(f"  [배정완료] {agent.user.name} → {count}건")
+
         status = 'SUCCESS'
+        logger.info(f"=== 배정 완료 | 총 {total_assigned}건 (참여자 {agent_count}명) ===")
 
     except Exception as e:
         status = 'FAILURE'
         log_data['error'] = str(e)
+        logger.error(f"=== 배정 실패 | 원인: {e} ===", exc_info=True)
         print(f"❌ 배정 실패: {e}")
-    
+
     # 3. 결과 기록 (Agent Count 포함!)
     AssignmentLog.objects.create(
         triggered_by=triggered_by,
@@ -124,5 +148,5 @@ def task_run_auto_assign(triggered_by='SYSTEM'):
         agent_count=agent_count,
         result_detail=log_data
     )
-    
+
     return f"배정 완료: {total_assigned}건 (참여자: {agent_count}명)"
