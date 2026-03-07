@@ -131,17 +131,56 @@ class SalesAssignmentViewSet(viewsets.ModelViewSet):
         if secondary_status or secondary_agent:
             base_qs = base_qs.distinct()
         if getattr(user, 'is_superuser', False):
-            return base_qs
-        if not hasattr(user, 'agent_profile'):
-            return base_qs.none() # 상담원 아니면 빈 깡통
+            qs = base_qs
+        else:
+            if not hasattr(user, 'agent_profile'):
+                return base_qs.none() # 상담원 아니면 빈 깡통
 
-        agent = user.agent_profile
-        
-        # 관리자라면 전체 조회, 상담원이라면 '내 담당'만 조회
-        if agent.role in ['ADMIN', 'MANAGER']:
-            return base_qs
-        
-        return base_qs.filter(agent=agent)
+            agent = user.agent_profile
+            
+            # 관리자라면 전체 조회, 상담원이라면 '내 담당'만 조회
+            if agent.role in ['ADMIN', 'MANAGER']:
+                qs = base_qs
+            else:
+                qs = base_qs.filter(agent=agent)
+
+        # 금일 배정된 건만 보기 (KST 기준)
+        assigned_today = self.request.query_params.get('assigned_today')
+        if assigned_today in ['1', 'true', 'True', 'yes', 'Y']:
+            today_kst = timezone.localtime().date()
+            kst = timezone.get_current_timezone()
+            start_dt = timezone.make_aware(datetime.combine(today_kst, time.min), kst)
+            end_dt = timezone.make_aware(datetime.combine(today_kst, time.max), kst)
+            qs = qs.filter(assigned_at__range=(start_dt, end_dt))
+
+        return qs
+
+    @action(detail=False, methods=['get'], url_path='today-stats')
+    def today_stats(self, request):
+        user = request.user
+        qs = SalesAssignment.objects.filter(stage=SalesAssignment.Stage.FIRST)
+
+        if not getattr(user, 'is_superuser', False):
+            if not hasattr(user, 'agent_profile'):
+                return Response({'total': 0, 'completed': 0, 'remaining': 0})
+            agent = user.agent_profile
+            if agent.role not in ['ADMIN', 'MANAGER']:
+                qs = qs.filter(agent=agent)
+
+        today_kst = timezone.localtime().date()
+        kst = timezone.get_current_timezone()
+        start_dt = timezone.make_aware(datetime.combine(today_kst, time.min), kst)
+        end_dt = timezone.make_aware(datetime.combine(today_kst, time.max), kst)
+        qs = qs.filter(assigned_at__range=(start_dt, end_dt))
+
+        total = qs.count()
+        completed = qs.filter(status__in=['REJECT', 'INVALID', 'SUCCESS', 'BUY', 'HOLD']).count()
+
+        return Response({
+            'total': total,
+            'completed': completed,
+            'remaining': total - completed,
+        })
 
     @action(detail=False, methods=['get'], url_path='recycle-candidates')
     def recycle_candidates(self, request):

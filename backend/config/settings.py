@@ -190,6 +190,40 @@ USE_I18N = True
 
 USE_TZ = True
 
+# Logging
+LOGS_DIR = BASE_DIR / 'logs' / 'auto_assign'
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'auto_assign': {
+            'format': '[{asctime}] {levelname} {message}',
+            'style': '{',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+    },
+    'handlers': {
+        'auto_assign_file': {
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': str(LOGS_DIR / 'auto_assign.log'),
+            'when': 'midnight',
+            'interval': 1,
+            'backupCount': 90,
+            'encoding': 'utf-8',
+            'formatter': 'auto_assign',
+        },
+    },
+    'loggers': {
+        'auto_assign': {
+            'handlers': ['auto_assign_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}
+
 # Celery (KST 기준 스케줄)
 CELERY_TIMEZONE = 'Asia/Seoul'
 CELERY_ENABLE_UTC = False

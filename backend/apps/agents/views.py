@@ -79,6 +79,70 @@ class AgentViewSet(viewsets.ModelViewSet):
                 {"detail": "상담원 프로필이 없습니다. 관리자에게 문의하세요."}, 
                 status=status.HTTP_404_NOT_FOUND
             )
+
+    # ----------------------------------------------------------------
+    # 🌟 기능 2-1: "내 통계" 가져오기 (모바일 작업현황)
+    # URL: GET /api/v1/agents/me/stats/
+    # ----------------------------------------------------------------
+    @action(detail=False, methods=['get'], url_path='me/stats')
+    def me_stats(self, request):
+        try:
+            agent = request.user.agent_profile
+        except Agent.DoesNotExist:
+            return Response(
+                {"detail": "상담원 프로필이 없습니다. 관리자에게 문의하세요."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        today = timezone.localtime().date()
+        kst = timezone.get_current_timezone()
+
+        start_date_param = request.query_params.get('start_date')
+        end_date_param = request.query_params.get('end_date')
+
+        try:
+            start_date = datetime.strptime(start_date_param, '%Y-%m-%d').date() if start_date_param else today
+            end_date = datetime.strptime(end_date_param, '%Y-%m-%d').date() if end_date_param else today
+        except ValueError:
+            start_date = today
+            end_date = today
+
+        if start_date > end_date:
+            start_date, end_date = end_date, start_date
+
+        start_dt = timezone.make_aware(datetime.combine(start_date, datetime.min.time()), kst)
+        end_dt = timezone.make_aware(datetime.combine(end_date, datetime.max.time()), kst)
+
+        call_stat = CallLog.objects.filter(
+            agent=agent,
+            call_start__range=(start_dt, end_dt)
+        ).aggregate(
+            today_total=Count('id'),
+            today_success=Count('id', filter=Q(result_type='SUCCESS')),
+            today_reject=Count('id', filter=Q(result_type='REJECT')),
+            today_absence=Count('id', filter=Q(result_type='ABSENCE')),
+            today_invalid=Count('id', filter=Q(result_type='INVALID')),
+            today_duration=Coalesce(Sum('call_duration'), 0)
+        )
+
+        total_calls = call_stat['today_total'] or 0
+        success_rate = 0
+        if total_calls > 0:
+            success_rate = round((call_stat['today_success'] / total_calls) * 100, 1)
+
+        return Response({
+            "agent_id": agent.agent_id,
+            "name": agent.user.name,
+            "team": agent.team,
+            "today_total": total_calls,
+            "today_success": call_stat['today_success'] or 0,
+            "today_reject": call_stat['today_reject'] or 0,
+            "today_absence": call_stat['today_absence'] or 0,
+            "today_invalid": call_stat['today_invalid'] or 0,
+            "today_duration": call_stat['today_duration'] or 0,
+            "total_call_time": self._format_duration(call_stat['today_duration'] or 0),
+            "success_rate": success_rate,
+        })
     # ----------------------------------------------------------------
     # 🌟 기능 3: 조회
     # GET /api/v1/agents/{id}/customers/
