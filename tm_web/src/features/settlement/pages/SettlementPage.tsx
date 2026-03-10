@@ -185,9 +185,8 @@ export default function SettlementPage() {
     const edit = rowEdits[row.id];
     if (!edit) return;
 
-    const payload: { status: string; final_amount: number | null } = {
-      status: edit.status,
-      final_amount: null,
+    const payload: { status: SettlementRow['status']; final_amount?: number | null } = {
+      status: edit.status as SettlementRow['status'],
     };
 
     if (edit.final_amount !== '') {
@@ -223,7 +222,6 @@ export default function SettlementPage() {
       <PageHeaderCard
         title="정산 관리"
         description="월별 정산 데이터를 집계하고 상태를 관리합니다."
-        variant="dark"
         right={
           <Button onClick={handleExport} disabled={loading}>
             엑셀 다운로드

@@ -47,11 +47,11 @@ export function SettlementTrendChart({ data, viewLabel }: SettlementTrendChartPr
               tickFormatter={(value) => `${formatNumber(Number(value))}`}
             />
             <Tooltip
-              formatter={(value: number, name: string) => {
+              formatter={(value: number | undefined, name: string | undefined) => {
                 if (name === 'amount') {
-                  return [`${formatNumber(value)}원`, '정산액'];
+                  return [`${formatNumber(value ?? 0)}원`, '정산액'];
                 }
-                return [value, name];
+                return [value ?? 0, name ?? ''];
               }}
             />
             <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />

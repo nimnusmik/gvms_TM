@@ -25,7 +25,7 @@ export type SettlementRow = {
   absence_count: number;
   billable_count: number;
   calculated_amount: number;
-  final_amount: number;
+  final_amount: number | null;
   status: 'PENDING' | 'REVIEW' | 'PAID';
   status_label: string;
   note: string;

@@ -46,8 +46,6 @@ export function AgentTrendChart({ data }: AgentTrendChartProps) {
     .sort((a, b) => (totalsByAgent[b.id] ?? 0) - (totalsByAgent[a.id] ?? 0))
     .slice(0, 6);
 
-  const rankedAgentIds = new Set(rankedAgents.map((agent) => agent.id));
-
   const chartData = data.points.map((point) => {
     const row: Record<string, number | string> = { date: point.date };
     rankedAgents.forEach((agent) => {
@@ -74,7 +72,7 @@ export function AgentTrendChart({ data }: AgentTrendChartProps) {
               tick={{ fontSize: 12 }}
               tickFormatter={(value) => `${value}%`}
             />
-            <Tooltip formatter={(value: number) => `${value}%`} />
+            <Tooltip formatter={(value: number | undefined) => value !== undefined ? `${value}%` : ''} />
             <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
             {rankedAgents.map((agent, index) => (
               <Line
