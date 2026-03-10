@@ -51,3 +51,9 @@ Thumbs.db
 # backend/temp 전체 무시
 backend/temp/
 *.xlsx
+
+*.env*
+*.apk
+*.apk.zip
+backend/logs/
+*.tsbuildinfo
