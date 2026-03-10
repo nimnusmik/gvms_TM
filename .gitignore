@@ -37,6 +37,11 @@ build/
 
 .cursor/
 
+# Backend Logs
+backend/logs/
+*.log
+*.log.*
+
 # OS / editor
 .DS_Store
 Thumbs.db
