@@ -32,6 +32,8 @@ build/
 .env
 .env.*
 !.env.example
+!tm_mob/.env.production
+!tm_mob/.env.development
 
 .cursor/
 

@@ -4,10 +4,10 @@
     "slug": "tm_mob",
     "version": "1.0.1", 
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/TM_app_icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/TM_app_icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -15,20 +15,27 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.globalvision.tmpartner", 
-      "versionCode": 1, 
+      "package": "com.globalvision.tmpartner",
+      "versionCode": 2,
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/TM_app_icon.png",
+        "backgroundColor": "#E6F4FE"
       }
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {

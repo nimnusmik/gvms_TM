@@ -171,7 +171,6 @@ export default function AssignmentHistoryPage() {
       <PageHeaderCard
         title="배정 이력 (스냅샷)"
         description="담당 변경 시 과거 기록도 갱신될 수 있습니다."
-        variant="dark"
         right={
           activeTab === 'snapshot' ? (
             <Button onClick={handleExport} disabled={exporting}>

@@ -99,7 +99,7 @@ export const PerformanceChart = ({ data }: PerformanceChartProps) => {
                 fontSize: 12,
                 color: COLORS.text,
               }}
-              formatter={(value: any, name: any, props: any) => {
+              formatter={(value: any, name: any) => {
                 if (name === '성공률(%)') return [`${Number(value).toFixed(1)}%`, name];
                 return [value, name];
               }}

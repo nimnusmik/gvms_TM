@@ -40,7 +40,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     // 예: 401 에러(토큰 만료)면 자동으로 로그아웃 시키기 등의 로직 가능
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !error.config?.url?.includes('/auth/login/')) {
       localStorage.removeItem('access_token');
       window.location.href = '/login';
     }

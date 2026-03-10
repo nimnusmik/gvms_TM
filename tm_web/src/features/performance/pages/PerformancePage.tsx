@@ -97,7 +97,6 @@ export default function PerformancePage() {
       <PageHeaderCard
         title="성과 현황"
         description="상담원 운영 상태와 실시간 지표를 한 화면에서 확인합니다."
-        variant="dark"
         right={
           <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
             <span className="rounded-full bg-slate-100 px-3 py-1">
