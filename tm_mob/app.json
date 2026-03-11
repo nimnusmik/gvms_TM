@@ -7,9 +7,9 @@
     "icon": "./assets/TM_app_icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/TM_app_icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "image": "./assets/graphic_Splash_b.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#003087"
     },
     "ios": {
       "supportsTablet": true
@@ -17,7 +17,6 @@
     "android": {
       "package": "com.globalvision.tmpartner",
       "versionCode": 2,
-      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/TM_app_icon.png",
         "backgroundColor": "#E6F4FE"
