@@ -23,6 +23,7 @@ class SalesAssignmentSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     stage_display = serializers.CharField(source='get_stage_display', read_only=True)
     call_count = serializers.IntegerField(read_only=True, default=0)
+    last_memo = serializers.CharField(read_only=True, allow_null=True)
 
     class Meta:
         model = SalesAssignment
@@ -42,7 +43,8 @@ class SalesAssignmentSerializer(serializers.ModelSerializer):
             'secondary_assignment',
             
             'call_count',
-            'assigned_at', 
+            'last_memo',
+            'assigned_at',
             'updated_at'
         ]
         read_only_fields = ['stage', 'assigned_at', 'updated_at']

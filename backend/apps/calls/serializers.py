@@ -24,6 +24,7 @@ class CallLogSerializer(serializers.ModelSerializer):
             "call_start",
             "duration",
             "result",
+            "memo",
             "callback_scheduled_at",
             "status_before",
             "status_after",

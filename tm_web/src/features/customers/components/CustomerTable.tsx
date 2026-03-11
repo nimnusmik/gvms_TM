@@ -36,7 +36,7 @@ export function CustomerTable({
   showSelection,
 }: CustomerTableProps) {
   const isSelectionVisible = showSelection ?? !readOnly;
-  const columnCount = isSelectionVisible ? 13 : 12;
+  const columnCount = isSelectionVisible ? 14 : 13;
   return (
     <div className="bg-white rounded-lg shadow border overflow-hidden flex flex-col h-full">
       <div className="overflow-x-auto">
@@ -86,6 +86,9 @@ export function CustomerTable({
                 상태 (2차)
               </th>
              
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">
+                최근 메모
+              </th>
               <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap min-w-[90px]">
                 통화
               </th>
@@ -241,7 +244,23 @@ export function CustomerTable({
                     )}
                   </td>
 
-                  {/* 8. 통화 횟수 */}
+                  {/* 8. 최근 메모 */}
+                  <td className="px-6 py-4 min-w-[150px] max-w-[200px]">
+                    {assignment.last_memo ? (
+                      <span
+                        className="truncate block text-sm text-gray-700"
+                        title={assignment.last_memo}
+                      >
+                        {assignment.last_memo.length > 30
+                          ? `${assignment.last_memo.slice(0, 30)}...`
+                          : assignment.last_memo}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-sm">-</span>
+                    )}
+                  </td>
+
+                  {/* 9. 통화 횟수 */}
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     <span
                       className={`text-xs font-mono font-bold px-2 py-1 rounded-md ${

@@ -57,6 +57,7 @@ export interface SalesAssignment {
 
   agent_code?: string | null;
   call_count?: number;
+  last_memo?: string | null;
   assigned_at: string;
   updated_at: string;
 }

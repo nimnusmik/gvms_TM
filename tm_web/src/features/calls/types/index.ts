@@ -9,6 +9,7 @@ export interface CallLog {
   call_start?: string | null;
   duration?: number | null;
   result?: string | null;
+  memo?: string | null;
   recording_file?: string | null;
   recording_status?: "PENDING" | "UPLOADED" | "FAILED" | string;
   recording_mime?: string | null;

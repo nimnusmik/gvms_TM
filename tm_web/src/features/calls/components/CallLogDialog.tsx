@@ -93,6 +93,7 @@ export function CallLogDialog({ open, onOpenChange, assignmentId, customerName }
                     <th className="px-4 py-2 text-left font-medium text-gray-600">통화일시</th>
                     <th className="px-4 py-2 text-left font-medium text-gray-600">결과</th>
                     <th className="px-4 py-2 text-left font-medium text-gray-600">통화시간</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-600">메모</th>
                     <th className="px-4 py-2 text-left font-medium text-gray-600">녹취상태</th>
                     <th className="px-4 py-2 text-left font-medium text-gray-600">녹취</th>
                   </tr>
@@ -105,6 +106,7 @@ export function CallLogDialog({ open, onOpenChange, assignmentId, customerName }
                         <td className="px-4 py-2 text-gray-700">{formatDateTime(log.call_start)}</td>
                         <td className="px-4 py-2 text-gray-700">{log.result || "-"}</td>
                         <td className="px-4 py-2 text-gray-700">{formatDuration(log.duration)}</td>
+                        <td className="px-4 py-2 text-sm text-gray-700">{log.memo || <span className="text-gray-400">-</span>}</td>
                         <td className="px-4 py-2 text-gray-700">{log.recording_status || "-"}</td>
                         <td className="px-4 py-2">
                           <div className="flex flex-col gap-2">
