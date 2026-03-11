@@ -52,6 +52,10 @@ Thumbs.db
 backend/temp/
 *.xlsx
 
+# .gitignore 파일에 추가
+backend/logs/
+*.log
+
 *.env*
 *.apk
 *.apk.zip
