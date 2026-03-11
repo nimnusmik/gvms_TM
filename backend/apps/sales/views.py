@@ -4,7 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import transaction
-from django.db.models import Count, Prefetch, F
+from django.db.models import Count, Prefetch, F, Subquery, OuterRef
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
@@ -15,6 +15,7 @@ import pytz
 from openpyxl import Workbook
 
 from .models import SalesAssignment, SalesPullRequest
+from apps.calls.models import CallLog
 from .serializers import (
     SalesAssignmentSerializer,
     SalesPullRequestSerializer,
@@ -106,8 +107,13 @@ class SalesAssignmentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        last_memo_subquery = Subquery(
+            CallLog.objects.filter(assignment=OuterRef('pk'))
+            .order_by('-call_start').values('memo')[:1]
+        )
         base_qs = SalesAssignment.objects.select_related('customer', 'agent', 'agent__user').annotate(
-            call_count=Count('call_logs')
+            call_count=Count('call_logs'),
+            last_memo=last_memo_subquery
         ).prefetch_related(
             Prefetch(
                 'child_assignments',

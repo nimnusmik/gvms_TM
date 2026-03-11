@@ -42,6 +42,7 @@ class CallLog(models.Model):
     recording_mime = models.CharField(max_length=100, null=True, blank=True)
     recording_size = models.IntegerField(null=True, blank=True)
     recording_uploaded_at = models.DateTimeField(null=True, blank=True)
+    memo = models.TextField(blank=True, default="", verbose_name="상담 메모")
     status_before = models.CharField(
         max_length=20,
         choices=SalesAssignment.Status.choices,
