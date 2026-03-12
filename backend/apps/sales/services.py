@@ -24,7 +24,7 @@ def _get_latest_assignment_queryset():
     )
     return SalesAssignment.objects.annotate(latest_id=latest_id).filter(id=F("latest_id"))
 
-def get_recycle_candidates(limit=None, exclude_agent_id=None):
+def get_recycle_candidates(limit=None, exclude_agent_id=None, skip_cooldown=False):
     now = timezone.now()
     cooldown_cutoff = now - timedelta(days=RECYCLE_COOLDOWN_DAYS)
     trying_cutoff = now - timedelta(days=RECYCLE_TRYING_EXPIRE_DAYS)
@@ -60,7 +60,8 @@ def get_recycle_candidates(limit=None, exclude_agent_id=None):
     )
 
     qs = qs.filter(status_filter | trying_filter)
-    qs = qs.filter(last_contact_at__lte=cooldown_cutoff)
+    if not skip_cooldown:
+        qs = qs.filter(last_contact_at__lte=cooldown_cutoff)
 
     if exclude_agent_id is not None:
         qs = qs.exclude(agent_id=exclude_agent_id)
