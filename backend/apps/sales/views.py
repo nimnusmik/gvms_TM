@@ -198,7 +198,7 @@ class SalesAssignmentViewSet(viewsets.ModelViewSet):
             if agent.role not in ['ADMIN', 'MANAGER']:
                 return Response({"detail": "권한이 없습니다."}, status=status.HTTP_403_FORBIDDEN)
 
-        qs = get_recycle_candidates(limit=None).filter(stage=SalesAssignment.Stage.FIRST)
+        qs = get_recycle_candidates(limit=None, skip_cooldown=True).filter(stage=SalesAssignment.Stage.FIRST)
         qs = qs.select_related('customer', 'agent', 'agent__user').annotate(
             call_count=Count('call_logs')
         ).prefetch_related(
@@ -319,7 +319,7 @@ class SalesAssignmentViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='recycle/export')
     def recycle_export(self, request):
-        qs = get_recycle_candidates(limit=None).filter(stage=SalesAssignment.Stage.FIRST)
+        qs = get_recycle_candidates(limit=None, skip_cooldown=True).filter(stage=SalesAssignment.Stage.FIRST)
         qs = qs.select_related('customer', 'agent', 'agent__user').annotate(
             call_count=Count('call_logs')
         ).prefetch_related(

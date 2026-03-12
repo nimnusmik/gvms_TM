@@ -24,7 +24,7 @@ def _get_latest_assignment_queryset():
     )
     return SalesAssignment.objects.annotate(latest_id=latest_id).filter(id=F("latest_id"))
 
-def get_recycle_candidates(limit=None, exclude_agent_id=None):
+def get_recycle_candidates(limit=None, exclude_agent_id=None, skip_cooldown=False):
     now = timezone.now()
     cooldown_cutoff = now - timedelta(days=RECYCLE_COOLDOWN_DAYS)
     trying_cutoff = now - timedelta(days=RECYCLE_TRYING_EXPIRE_DAYS)
@@ -60,7 +60,8 @@ def get_recycle_candidates(limit=None, exclude_agent_id=None):
     )
 
     qs = qs.filter(status_filter | trying_filter)
-    qs = qs.filter(last_contact_at__lte=cooldown_cutoff)
+    if not skip_cooldown:
+        qs = qs.filter(last_contact_at__lte=cooldown_cutoff)
 
     if exclude_agent_id is not None:
         qs = qs.exclude(agent_id=exclude_agent_id)
@@ -104,13 +105,7 @@ def assign_leads_to_agent(agent, count=None): # count가 None이면 자동 계�
     """
     상담원에게 '1차 TM' 신규 DB를 배정하는 로직 (Daily Cap 준수)
     """
-    # 1. 오늘 배정된 건수 확인 (KST 기준 오늘 날짜만)
-    today_kst = timezone.localtime().date()
-    kst = timezone.get_current_timezone()
-    from datetime import datetime, time as dt_time
-    today_start = timezone.make_aware(datetime.combine(today_kst, dt_time.min), kst)
-    today_end = timezone.make_aware(datetime.combine(today_kst, dt_time.max), kst)
-
+    # 1. 미처리 배정 건수 확인 (날짜 무관, 전체 active 건수 기준)
     active_assigned_count = SalesAssignment.objects.filter(
         agent=agent,
         stage=SalesAssignment.Stage.FIRST,
@@ -119,7 +114,6 @@ def assign_leads_to_agent(agent, count=None): # count가 None이면 자동 계�
             SalesAssignment.Status.TRYING,
             SalesAssignment.Status.HOLD,
         ],
-        assigned_at__range=(today_start, today_end),
     ).count()
 
     # 2. 남은 할당량 계산
