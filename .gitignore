@@ -66,3 +66,15 @@ backend/logs/
 *.aab
 민감정보.rtf
 민감정보.txt
+*.apk
+
+# --- Build Artifacts ---
+# 모바일 빌드 결과물 (특정 타임스탬프 형태의 파일들 제외)
+tm_mob/build-*.apk
+tm_mob/build-*.apk.zip
+# 혹은 더 넓게 모든 apk 제외
+# tm_mob/*.apk
+
+# --- Local Development & Cache ---
+# Vite 캐시 디렉토리 전체 제외
+tm_web/.vite/
