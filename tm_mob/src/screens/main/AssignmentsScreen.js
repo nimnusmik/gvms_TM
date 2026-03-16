@@ -92,7 +92,7 @@ export default function AssignmentsScreen({ route, navigation }) {
   };
 
   const buildQuery = (page = 1) => {
-    let q = `/sales/?stage=1ST&assigned_today=1&page=${page}`;
+    let q = `/sales/?stage=1ST&active_only=1&page=${page}`;
     if (filterStatus) q += `&status=${filterStatus}`;
     return q;
   };

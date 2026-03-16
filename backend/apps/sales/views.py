@@ -159,6 +159,11 @@ class SalesAssignmentViewSet(viewsets.ModelViewSet):
             end_dt = timezone.make_aware(datetime.combine(today_kst, time.max), kst)
             qs = qs.filter(assigned_at__range=(start_dt, end_dt))
 
+        # 현재 진행 중인 건만 보기 (날짜 무관, ASSIGNED/TRYING/HOLD)
+        active_only = self.request.query_params.get('active_only')
+        if active_only in ['1', 'true', 'True', 'yes', 'Y']:
+            qs = qs.filter(status__in=['ASSIGNED', 'TRYING', 'HOLD'])
+
         return qs
 
     @action(detail=False, methods=['get'], url_path='today-stats')
