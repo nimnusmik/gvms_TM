@@ -169,23 +169,27 @@ class SalesAssignmentViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='today-stats')
     def today_stats(self, request):
         user = request.user
-        qs = SalesAssignment.objects.filter(stage=SalesAssignment.Stage.FIRST)
+        base_qs = SalesAssignment.objects.filter(stage=SalesAssignment.Stage.FIRST)
 
         if not getattr(user, 'is_superuser', False):
             if not hasattr(user, 'agent_profile'):
                 return Response({'total': 0, 'completed': 0, 'remaining': 0})
             agent = user.agent_profile
             if agent.role not in ['ADMIN', 'MANAGER']:
-                qs = qs.filter(agent=agent)
+                base_qs = base_qs.filter(agent=agent)
 
+        # 목표: 현재 활성 DB 개수 (날짜 무관, ASSIGNED/TRYING/HOLD)
+        total = base_qs.filter(status__in=['ASSIGNED', 'TRYING', 'HOLD']).count()
+
+        # 완료: 금일 처리 완료한 건 (updated_at 기준 오늘, 터미널 상태)
         today_kst = timezone.localtime().date()
         kst = timezone.get_current_timezone()
         start_dt = timezone.make_aware(datetime.combine(today_kst, time.min), kst)
         end_dt = timezone.make_aware(datetime.combine(today_kst, time.max), kst)
-        qs = qs.filter(assigned_at__range=(start_dt, end_dt))
-
-        total = qs.count()
-        completed = qs.filter(status__in=['REJECT', 'INVALID', 'SUCCESS', 'BUY', 'HOLD']).count()
+        completed = base_qs.filter(
+            status__in=['SUCCESS', 'BUY', 'REJECT', 'INVALID'],
+            updated_at__range=(start_dt, end_dt)
+        ).count()
 
         return Response({
             'total': total,
